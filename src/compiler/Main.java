@@ -1,4 +1,4 @@
-// Mini compiler for Kite - Stage 2: local variables and return
+// Mini compiler for Kite - Stage 3: block, return, and gcc+run
 package compiler;
 
 import java.io.FileNotFoundException;
@@ -34,7 +34,7 @@ class CodeGen {
         } else if (node instanceof VarDeclNode) {
             VarDeclNode var = (VarDeclNode) node;
             stackOffset += 8;
-            int slotOffset = stackOffset + 8; // avoid overwriting pushed %rbp
+            int slotOffset = stackOffset + 8;
             vars.put(var.name, slotOffset);
             gen(var.value);
             out.println("    mov %rax, -" + slotOffset + "(%rbp)");
@@ -85,81 +85,79 @@ class CodeGen {
         gen(node);
     }
 }
-
-class IdentNode extends Node {
-	String name;
-
-	IdentNode(String name) {
-		this.name = name;
-	}
-}
-
+class IdentNode extends Node { String name; IdentNode(String name) { this.name = name; } }
 // === LEXER ===
 class Lexer {
-	private final String input;
-	private int pos = 0;
+    private final String input;
+    private int pos = 0;
 
-	Lexer(String input) {
-		this.input = input;
-	}
+    Lexer(String input) {
+        this.input = input;
+    }
 
-	Token next() {
-		while (pos < input.length() && Character.isWhitespace(input.charAt(pos)))
-			pos++;
-		if (pos >= input.length()) return new Token(Token.Kind.EOF);
+    Token next() {
+        while (pos < input.length() && Character.isWhitespace(input.charAt(pos))) pos++;
+        if (pos >= input.length()) return new Token(Token.Kind.EOF);
 
-		char c = input.charAt(pos);
+        char c = input.charAt(pos);
 
-		if (Character.isDigit(c)) {
-			int start = pos;
-			while (pos < input.length() && Character.isDigit(input.charAt(pos)))
-				pos++;
-			int value = Integer.parseInt(input.substring(start, pos));
-			return new Token(Token.Kind.NUM, value);
-		}
+        if (Character.isDigit(c)) {
+            int start = pos;
+            while (pos < input.length() && Character.isDigit(input.charAt(pos))) pos++;
+            int value = Integer.parseInt(input.substring(start, pos));
+            return new Token(Token.Kind.NUM, value);
+        }
 
-		if (Character.isLetter(c)) {
-			int start = pos;
-			while (pos < input.length() && Character.isLetterOrDigit(input.charAt(pos)))
-				pos++;
-			String text = input.substring(start, pos);
-			if ("int".equals(text)) return new Token(Token.Kind.INT);
-			if ("return".equals(text)) return new Token(Token.Kind.RETURN);
-			return new Token(Token.Kind.IDENT, text);
-		}
+        if (Character.isLetter(c)) {
+            int start = pos;
+            while (pos < input.length() && Character.isLetterOrDigit(input.charAt(pos))) pos++;
+            String text = input.substring(start, pos);
+            if ("int".equals(text)) return new Token(Token.Kind.INT);
+            if ("return".equals(text)) return new Token(Token.Kind.RETURN);
+            return new Token(Token.Kind.IDENT, text);
+        }
 
-		pos++;
-		switch (c) {
-		case '+':
-			return new Token(Token.Kind.PLUS);
-		case '-':
-			return new Token(Token.Kind.MINUS);
-		case '*':
-			return new Token(Token.Kind.MUL);
-		case '/':
-			return new Token(Token.Kind.DIV);
-		case '(':
-			return new Token(Token.Kind.LPAREN);
-		case ')':
-			return new Token(Token.Kind.RPAREN);
-		case '=':
-			return new Token(Token.Kind.ASSIGN);
-		case ';':
-			return new Token(Token.Kind.SEMI);
-		default:
-			throw new RuntimeException("Invalid token: " + c);
-		}
-	}
+        pos++;
+        switch (c) {
+            case '+': return new Token(Token.Kind.PLUS);
+            case '-': return new Token(Token.Kind.MINUS);
+            case '*': return new Token(Token.Kind.MUL);
+            case '/': return new Token(Token.Kind.DIV);
+            case '(': return new Token(Token.Kind.LPAREN);
+            case ')': return new Token(Token.Kind.RPAREN);
+            case '{': return new Token(Token.Kind.LBRACE);
+            case '}': return new Token(Token.Kind.RBRACE);
+            case '=': return new Token(Token.Kind.ASSIGN);
+            case ';': return new Token(Token.Kind.SEMI);
+            default: throw new RuntimeException("Invalid token: " + c);
+        }
+    }
 }
 
 // === PRINTWRITER WITH CONSOLE OUTPUT ===
 class MyPrintWriter extends PrintWriter {
-    public MyPrintWriter(String s) throws FileNotFoundException { super(s); }
-    @Override public void println(String x) { System.out.println(x); super.println(x); }
+	public MyPrintWriter(String s) throws FileNotFoundException {
+		super(s);
+	}
+
+	@Override
+	public void println(String x) {
+		System.out.println(x);
+		super.println(x);
+	}
 }
+
 // === AST ===
-abstract class Node {}
-class NumNode extends Node { int value; NumNode(int value) { this.value = value; } }
+abstract class Node {
+}
+
+class NumNode extends Node {
+	int value;
+
+	NumNode(int value) {
+		this.value = value;
+	}
+}
 
 // === PARSER ===
 class Parser {
@@ -186,6 +184,22 @@ class Parser {
         return node;
     }
 
+    Node block() {
+        BlockNode block = new BlockNode();
+        if (current.kind == Token.Kind.LBRACE) {
+            eat(Token.Kind.LBRACE);
+            while (current.kind != Token.Kind.RBRACE) {
+                block.statements.add(statement());
+            }
+            eat(Token.Kind.RBRACE);
+        } else {
+            while (current.kind != Token.Kind.EOF) {
+                block.statements.add(statement());
+            }
+        }
+        return block;
+    }
+
     Node expr() { return add(); }
 
     Node mul() {
@@ -199,11 +213,7 @@ class Parser {
     }
 
     Node parse() {
-        BlockNode block = new BlockNode();
-        while (current.kind != Token.Kind.EOF) {
-            block.statements.add(statement());
-        }
-        return block;
+        return block();
     }
 
     Node primary() {
@@ -239,6 +249,8 @@ class Parser {
             Node expr = expr();
             eat(Token.Kind.SEMI);
             return new ReturnNode(expr);
+        } else if (current.kind == Token.Kind.LBRACE) {
+            return block();
         } else {
             throw new RuntimeException("Invalid statement");
         }
@@ -250,7 +262,8 @@ class ReturnNode extends Node { Node expr; ReturnNode(Node expr) { this.expr = e
 // === TOKENS ===
 class Token {
     enum Kind {
-        NUM, IDENT, INT, RETURN, PLUS, MINUS, MUL, DIV, LPAREN, RPAREN, ASSIGN, SEMI, EOF
+        NUM, IDENT, INT, RETURN, PLUS, MINUS, MUL, DIV,
+        LPAREN, RPAREN, LBRACE, RBRACE, ASSIGN, SEMI, EOF
     }
 
     Kind kind;
@@ -273,7 +286,7 @@ class VarDeclNode extends Node {
 public class Main {
 	public static void main(String[] args) throws Exception {
         if (args.length != 1) {
-            System.err.println("Usage: java -cp bin compiler.Main \"int x = 5; return x + 2;\"");
+			System.err.println("Usage: java -cp bin compiler.Main \"{ int x = 5; return x + 2; }\"");
             System.exit(1);
         }
 
@@ -286,5 +299,16 @@ public class Main {
 			CodeGen gen = new CodeGen(out);
 			gen.emit(ast);
 		}
+
+		Process gcc = new ProcessBuilder("gcc", "-o", "out", "out.s").inheritIO().start();
+		int gccStatus = gcc.waitFor();
+		if (gccStatus != 0) {
+			System.err.println("GCC compilation failed.");
+			System.exit(1);
+		}
+
+		Process run = new ProcessBuilder("./out").start();
+		int exitCode = run.waitFor();
+		System.out.println("Program exited with code: " + exitCode);
 	}
 }
