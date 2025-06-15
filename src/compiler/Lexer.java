@@ -1,6 +1,5 @@
 package compiler;
 
-//=== LEXER ===
 class Lexer {
 	private final String input;
 	private int pos = 0;
@@ -50,6 +49,7 @@ class Lexer {
 		case '}' -> new Token(Token.Kind.RBRACE);
 		case '=' -> new Token(Token.Kind.ASSIGN);
 		case ';' -> new Token(Token.Kind.SEMI);
+		case ',' -> new Token(Token.Kind.COMMA);
 		default -> throw new RuntimeException("Invalid token: " + c);
 		};
 	}

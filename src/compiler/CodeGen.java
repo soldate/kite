@@ -5,46 +5,64 @@ import java.util.HashMap;
 import java.util.Map;
 import compiler.ast.*;
 
-public class CodeGen {
-	private final PrintWriter out;
-	private final Map<String, Integer> localVars = new HashMap<>();
-	private int stackOffset = 0;
-	private int labelCounter = 0;
+class CodeGen {
+    private final PrintWriter out;
+    private final Map<String, Integer> localVars = new HashMap<>();
+    private int stackOffset = 0;
+    private int labelCounter = 0;
 
-	public CodeGen(PrintWriter out) {
-		this.out = out;
-	}
+    CodeGen(PrintWriter out) {
+        this.out = out;
+    }
 
 	private void gen(Node node) {
-		if (node instanceof BlockNode block) {
-			for (Node stmt : block.statements) {
+		if (node instanceof compiler.ast.BlockNode block) {
+			for (Node stmt : block.statements)
 				gen(stmt);
-			}
 
-		} else if (node instanceof NumNode num) {
+		} else if (node instanceof compiler.ast.NumNode num) {
 			out.printf("    mov $%d, %%rax\n", num.value);
 
-		} else if (node instanceof IdentNode ident) {
+		} else if (node instanceof compiler.ast.IdentNode ident) {
 			Integer offset = localVars.get(ident.name);
 			if (offset == null) throw new RuntimeException("Undefined variable: " + ident.name);
 			out.printf("    mov %d(%%rbp), %%rax\n", offset);
 
-		} else if (node instanceof VarDeclNode var) {
+		} else if (node instanceof compiler.ast.BinOpNode bin) {
+			gen(bin.left);
+			out.println("    push %rax");
+			gen(bin.right);
+			out.println("    pop %rdi"); // rdi = left
+
+			switch (bin.op) {
+			case PLUS -> out.println("    add %rdi, %rax");
+			case MINUS -> out.println("    sub %rdi, %rax");
+			case MUL -> out.println("    imul %rdi, %rax");
+			case DIV -> {
+				out.println("    mov %rax, %rcx");
+				out.println("    mov %rdi, %rax");
+				out.println("    cqo");
+				out.println("    idiv %rcx");
+			}
+			default -> throw new RuntimeException("Unsupported operator");
+			}
+
+		} else if (node instanceof compiler.ast.VarDeclNode var) {
 			stackOffset -= 8;
 			localVars.put(var.name, stackOffset);
 			gen(var.value);
 			out.printf("    mov %%rax, %d(%%rbp)\n", stackOffset);
 
-		} else if (node instanceof AssignNode assign) {
+		} else if (node instanceof compiler.ast.AssignNode assign) {
 			Integer offset = localVars.get(assign.name);
 			if (offset == null) throw new RuntimeException("Undefined variable: " + assign.name);
 			gen(assign.value);
 			out.printf("    mov %%rax, %d(%%rbp)\n", offset);
 
-		} else if (node instanceof ReturnNode ret) {
+		} else if (node instanceof compiler.ast.ReturnNode ret) {
 			gen(ret.expr);
 
-		} else if (node instanceof IfNode ifn) {
+		} else if (node instanceof compiler.ast.IfNode ifn) {
 			int label = labelCounter++;
 			gen(ifn.cond);
 			out.println("    cmp $0, %rax");
@@ -52,7 +70,7 @@ public class CodeGen {
 			gen(ifn.thenBranch);
 			out.printf(".Lend%d:\n", label);
 
-		} else if (node instanceof WhileNode wn) {
+		} else if (node instanceof compiler.ast.WhileNode wn) {
 			int label = labelCounter++;
 			out.printf(".Lbegin%d:\n", label);
 			gen(wn.cond);
@@ -62,41 +80,65 @@ public class CodeGen {
 			out.printf("    jmp .Lbegin%d\n", label);
 			out.printf(".Lend%d:\n", label);
 
-		} else if (node instanceof BinOpNode bin) {
-			gen(bin.left); // avalia left
-			out.println("    push %rax"); // salva left
-			gen(bin.right); // avalia right
-			out.println("    pop %rdi"); // recupera left em rdi
+		} else if (node instanceof compiler.ast.FuncCallNode fn) {
+			String[] argRegs = { "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9" };
+			int n = fn.args.size();
+			if (n > argRegs.length) throw new RuntimeException("Too many arguments");
+			for (int i = n - 1; i >= 0; i--) {
+				gen(fn.args.get(i));
+				out.println("    push %rax");
+			}
+			for (int i = n - 1; i >= 0; i--) {
+				out.printf("    pop %s\n", argRegs[i]);
+			}
 
-			switch (bin.op) {
-			case PLUS -> out.println("    add %rdi, %rax"); // rax = right + left
-			case MINUS -> {
-				out.println("    sub %rax, %rdi"); // rdi = left - right
-				out.println("    mov %rdi, %rax"); // rax = resultado
+
+			out.printf("    call %s\n", fn.name);
+
+		} else if (node instanceof compiler.ast.FuncDefNode fd) {
+			out.printf(".globl %s\n", fd.name);
+			out.printf("%s:\n", fd.name);
+			out.println("    push %rbp");
+			out.println("    mov %rsp, %rbp");
+			localVars.clear();
+			stackOffset = 0;
+			String[] argRegs = { "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9" };
+			for (int i = 0; i < fd.params.size(); i++) {
+				stackOffset -= 8;
+				localVars.put(fd.params.get(i), stackOffset);
+				out.printf("    mov %s, %d(%%rbp)\n", argRegs[i], stackOffset);
 			}
-			case MUL -> out.println("    imul %rdi, %rax");
-			case DIV -> {
-				out.println("    mov %rdi, %rcx"); // left
-				out.println("    mov %rax, %rdi"); // right
-				out.println("    mov %rcx, %rax"); // rax = left
-				out.println("    cqo");
-				out.println("    idiv %rdi"); // rax = left / right
-			}
-			default -> throw new RuntimeException("Unsupported binary operator");
-			}
+			gen(fd.body);
+			out.println("    mov %rbp, %rsp");
+			out.println("    pop %rbp");
+			out.println("    ret");
 
 		} else {
 			throw new RuntimeException("Unsupported node type: " + node.getClass().getSimpleName());
 		}
 	}
 
-	public void emit(Node node) {
+    void emit(Node node) {
+        // Emit function definitions first
+        if (node instanceof compiler.ast.BlockNode block) {
+            for (Node stmt : block.statements) {
+                if (stmt instanceof compiler.ast.FuncDefNode) gen(stmt);
+            }
+        }
+
+        // Emit main entry point
         out.println(".globl main");
         out.println("main:");
         out.println("    push %rbp");
         out.println("    mov %rsp, %rbp");
 
-        gen(node);
+        if (node instanceof compiler.ast.BlockNode block) {
+            for (Node stmt : block.statements) {
+                if (!(stmt instanceof compiler.ast.FuncDefNode)) gen(stmt);
+            }
+        } else {
+            gen(node);
+        }
 
         out.println("    mov %rbp, %rsp");
         out.println("    pop %rbp");

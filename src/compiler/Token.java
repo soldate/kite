@@ -3,7 +3,8 @@ package compiler;
 //=== TOKENS ===
 public class Token {
 	public enum Kind {
-		NUM, IDENT, INT, RETURN, IF, WHILE, PLUS, MINUS, MUL, DIV, LPAREN, RPAREN, LBRACE, RBRACE, ASSIGN, SEMI, EOF
+		NUM, IDENT, INT, RETURN, IF, WHILE, PLUS, MINUS, MUL, DIV, LPAREN, RPAREN, LBRACE, RBRACE, ASSIGN, SEMI, EOF,
+		COMMA
 	}
 
 	Kind kind;

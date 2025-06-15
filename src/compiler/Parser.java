@@ -1,16 +1,10 @@
 package compiler;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import compiler.Token.Kind;
-import compiler.ast.AssignNode;
-import compiler.ast.BinOpNode;
-import compiler.ast.BlockNode;
-import compiler.ast.IdentNode;
-import compiler.ast.IfNode;
-import compiler.ast.Node;
-import compiler.ast.NumNode;
-import compiler.ast.ReturnNode;
-import compiler.ast.VarDeclNode;
-import compiler.ast.WhileNode;
+import compiler.ast.*;
 
 //=== PARSER ===
 class Parser {
@@ -28,14 +22,14 @@ class Parser {
 	}
 
 	Node add() {
-		Node node = mul();
-		while (current.kind == Token.Kind.PLUS || current.kind == Token.Kind.MINUS) {
-			Token.Kind op = current.kind;
-			eat(op);
-			node = new BinOpNode(node, op, mul());
-		}
-		return node;
-	}
+        Node node = mul();
+        while (current.kind == Token.Kind.PLUS || current.kind == Token.Kind.MINUS) {
+            Token.Kind op = current.kind;
+            eat(op);
+            node = new BinOpNode(node, op, mul());
+        }
+        return node;
+    }
 
 	Node block() {
 		BlockNode block = new BlockNode();
@@ -53,91 +47,144 @@ class Parser {
 		return block;
 	}
 
-	Node expr() {
-		return add();
-	}
+	Node expr() { return add(); }
 
 	Node mul() {
-		Node node = primary();
-		while (current.kind == Token.Kind.MUL || current.kind == Token.Kind.DIV) {
-			Token.Kind op = current.kind;
-			eat(op);
-			node = new BinOpNode(node, op, primary());
-		}
-		return node;
-	}
+        Node node = primary();
+        while (current.kind == Token.Kind.MUL || current.kind == Token.Kind.DIV) {
+            Token.Kind op = current.kind;
+            eat(op);
+            node = new BinOpNode(node, op, primary());
+        }
+        return node;
+    }
 
 	Node parse() {
-		return block();
+		BlockNode program = new BlockNode();
+		while (current.kind != Token.Kind.EOF) {
+			program.statements.add(statement());
+		}
+		return program;
 	}
 
 	Node primary() {
-     if (current.kind == Token.Kind.NUM) {
-         int value = current.value;
-         eat(Token.Kind.NUM);
-         return new NumNode(value);
-     } else if (current.kind == Token.Kind.IDENT) {
-         String name = current.text;
-         eat(Token.Kind.IDENT);
-         return new IdentNode(name);
-     } else if (current.kind == Token.Kind.LPAREN) {
-         eat(Token.Kind.LPAREN);
-         Node node = expr();
-         eat(Token.Kind.RPAREN);
-         return node;
-     } else {
-         throw new RuntimeException("Invalid expression");
-     }
- }
-
-	Node statement() {
-     if (current.kind == Token.Kind.INT) {
-         eat(Token.Kind.INT);
-         String name = current.text;
-         eat(Token.Kind.IDENT);
-         eat(Token.Kind.ASSIGN);
-         Node expr = expr();
-         eat(Token.Kind.SEMI);
-         return new VarDeclNode("int", name, expr);
-
-     } else if (current.kind == Token.Kind.RETURN) {
-         eat(Token.Kind.RETURN);
-         Node expr = expr();
-         eat(Token.Kind.SEMI);
-         return new ReturnNode(expr);
-
-     } else if (current.kind == Token.Kind.IF) {
-         eat(Token.Kind.IF);
-         eat(Token.Kind.LPAREN);
-         Node cond = expr();
-         eat(Token.Kind.RPAREN);
-         Node thenBranch = statement();
-         return new IfNode(cond, thenBranch);
-
-     } else if (current.kind == Token.Kind.WHILE) {
-         eat(Token.Kind.WHILE);
-         eat(Token.Kind.LPAREN);
-         Node cond = expr();
-         eat(Token.Kind.RPAREN);
-         Node body = statement();
-         return new WhileNode(cond, body);
-
-     } else if (current.kind == Token.Kind.LBRACE) {
-         return block();
-
-     } else if (current.kind == Token.Kind.IDENT) {
+		if (current.kind == Token.Kind.NUM) {
+			int value = current.value;
+			eat(Token.Kind.NUM);
+			return new NumNode(value);
+		} else if (current.kind == Token.Kind.IDENT) {
 			String name = current.text;
 			eat(Token.Kind.IDENT);
-			if (current.kind == Token.Kind.ASSIGN) {
-				eat(Token.Kind.ASSIGN);
-				Node value = expr();
-				eat(Token.Kind.SEMI);
-				return new AssignNode(name, value);
-			} else {
-				throw new RuntimeException("Expected '=' after identifier: " + name);
+
+			if (current.kind == Token.Kind.LPAREN) {
+				eat(Token.Kind.LPAREN);
+				List<Node> args = new ArrayList<>();
+				if (current.kind != Token.Kind.RPAREN) {
+					args.add(expr());
+					while (current.kind == Token.Kind.COMMA) {
+						eat(Token.Kind.COMMA);
+						args.add(expr());
+					}
+				}
+				eat(Token.Kind.RPAREN);
+				return new FuncCallNode(name, args);
 			}
+
+			return new IdentNode(name);
+
+		} else if (current.kind == Token.Kind.LPAREN) {
+			eat(Token.Kind.LPAREN);
+			Node node = expr();
+			eat(Token.Kind.RPAREN);
+			return node;
+
 		} else {
-         throw new RuntimeException("Invalid statement");
-     }
- }
+			throw new RuntimeException("Invalid expression");
+		}
+	}
+
+	Node statement() {
+		if (current.kind == Token.Kind.INT) {
+			eat(Token.Kind.INT);
+			String name = current.text;
+			eat(Token.Kind.IDENT);
+
+			if (current.kind == Token.Kind.LPAREN) {
+				eat(Token.Kind.LPAREN);
+				List<String> params = new ArrayList<>();
+				if (current.kind != Token.Kind.RPAREN) {
+					eat(Token.Kind.INT);
+					String paramName = current.text;
+					eat(Token.Kind.IDENT);
+					params.add(paramName);
+					while (current.kind == Token.Kind.COMMA) {
+						eat(Token.Kind.COMMA);
+						eat(Token.Kind.INT);
+						paramName = current.text;
+						eat(Token.Kind.IDENT);
+						params.add(paramName);
+					}
+				}
+				eat(Token.Kind.RPAREN);
+				Node body = statement();
+				return new FuncDefNode(name, params, (BlockNode) body);
+
+			} else {
+				eat(Token.Kind.ASSIGN);
+				Node expr = expr();
+				eat(Token.Kind.SEMI);
+				return new VarDeclNode("int", name, expr);
+			}
+		} else if (current.kind == Token.Kind.RETURN) {
+            eat(Token.Kind.RETURN);
+            Node expr = expr();
+            eat(Token.Kind.SEMI);
+            return new ReturnNode(expr);
+
+        } else if (current.kind == Token.Kind.IF) {
+            eat(Token.Kind.IF);
+            eat(Token.Kind.LPAREN);
+            Node cond = expr();
+            eat(Token.Kind.RPAREN);
+            Node thenBranch = statement();
+            return new IfNode(cond, thenBranch);
+
+        } else if (current.kind == Token.Kind.WHILE) {
+            eat(Token.Kind.WHILE);
+            eat(Token.Kind.LPAREN);
+            Node cond = expr();
+            eat(Token.Kind.RPAREN);
+            Node body = statement();
+            return new WhileNode(cond, body);
+
+        } else if (current.kind == Token.Kind.LBRACE) {
+            return block();
+
+        } else if (current.kind == Token.Kind.IDENT) {
+            String name = current.text;
+            eat(Token.Kind.IDENT);
+            if (current.kind == Token.Kind.LPAREN) {
+                eat(Token.Kind.LPAREN);
+                List<Node> args = new ArrayList<>();
+                if (current.kind != Token.Kind.RPAREN) {
+                    args.add(expr());
+                    while (current.kind == Token.Kind.COMMA) {
+                        eat(Token.Kind.COMMA);
+                        args.add(expr());
+                    }
+                }
+                eat(Token.Kind.RPAREN);
+                eat(Token.Kind.SEMI);
+                return new FuncCallNode(name, args);
+            } else {
+                eat(Token.Kind.ASSIGN);
+                Node value = expr();
+                eat(Token.Kind.SEMI);
+                return new AssignNode(name, value);
+            }
+
+        } else {
+            throw new RuntimeException("Invalid statement");
+        }
+    }
 }
