@@ -3,7 +3,6 @@ package compiler;
 import java.util.ArrayList;
 import java.util.List;
 
-import compiler.Token.Kind;
 import compiler.ast.*;
 
 //=== PARSER ===
@@ -17,9 +16,16 @@ class Parser {
 	}
 
 	private void eat(Token.Kind kind) {
-		if (current.kind == kind) current = lexer.nextToken();
-		else throw new RuntimeException("Expected: " + kind);
+		// System.out.println("eat: " + kind + " -> found: " + current.kind);
+
+		if (current.kind == kind) {
+			current = lexer.nextToken();
+		} else {
+			throw new RuntimeException(
+					"Expected: " + kind + ", but found: " + current.kind + " (" + current.text + ")");
+		}
 	}
+
 
 	Node add() {
         Node node = mul();
@@ -30,6 +36,16 @@ class Parser {
         }
         return node;
     }
+
+	Node assign() {
+		Node node = compare();
+		if (node instanceof IdentNode && current.kind == Token.Kind.ASSIGN) {
+			eat(Token.Kind.ASSIGN);
+			Node value = assign();
+			return new AssignNode((IdentNode) node, value);
+		}
+		return node;
+	}
 
 	Node block() {
 		BlockNode block = new BlockNode();
@@ -58,10 +74,10 @@ class Parser {
 		return node;
 	}
 
-	Node expr() {
-	    return compare();
-	}
 
+	Node expr() {
+	    return assign();
+	}
 
 	Node mul() {
         Node node = primary();
@@ -118,7 +134,7 @@ class Parser {
 			return new NumNode(val ? 1 : 0);
 
 		} else {
-			throw new RuntimeException("Invalid expression");
+			throw new RuntimeException("Invalid expression. " + current);
 		}
 	}
 
@@ -148,10 +164,17 @@ class Parser {
 				eat(Token.Kind.RPAREN);
 				Node body = statement();
 				return new FuncDefNode(name, params, (BlockNode) body);
+
+			} else if (current.kind == Token.Kind.ASSIGN) {
+				eat(Token.Kind.ASSIGN);
+				Node value = expr();
+				eat(Token.Kind.SEMI);
+				return new VarDeclNode(type.name().toLowerCase(), name, value);
+
 			} else {
 				Node expr = expr();
 				eat(Token.Kind.SEMI);
-				return new VarDeclNode(type.name().toLowerCase(), name, expr); // "int" ou "bool"
+				return new VarDeclNode(type.name().toLowerCase(), name, expr);
 			}
 		} else if (current.kind == Token.Kind.RETURN) {
             eat(Token.Kind.RETURN);
@@ -190,7 +213,7 @@ class Parser {
                         eat(Token.Kind.COMMA);
                         args.add(expr());
                     }
-                }
+				}
                 eat(Token.Kind.RPAREN);
                 eat(Token.Kind.SEMI);
                 return new FuncCallNode(name, args);

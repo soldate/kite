@@ -17,4 +17,10 @@ public class Token {
 		this.text = text;
 		this.value = value;
 	}
+
+	@Override
+	public String toString() {
+		return "token=(kind:" + kind + ", value:" + value + ", text:" + text + ")";
+	}
+
 }

@@ -2,19 +2,43 @@
 package compiler;
 
 import java.io.*;
+
+import compiler.ast.BlockNode;
+import compiler.ast.FuncDefNode;
 import compiler.ast.Node;
+import compiler.ast.ReturnNode;
 import compiler.util.MyPrintWriter;
 
 
 public class Main {
     public static void main(String[] args) throws Exception {
-		String input = args.length > 0 ? args[0] : "int sub(int a, int b) { return a - b; } return sub(1, 2);";
+		String input = args.length > 0 ? args[0] : "int teste() { int x = 10; if (x > 5) { return 1; } return 0; }";
         Lexer lexer = new Lexer(input);
         Parser parser = new Parser(lexer);
         Node ast = parser.parse();
 
 		try (PrintWriter out = new MyPrintWriter("out.s")) {
-			new CodeGen(out).emit(ast);
+			if (ast instanceof BlockNode block) {
+				CodeGen gen = new CodeGen(out);
+				for (Node stmt : block.statements) {
+					if (stmt instanceof FuncDefNode fn) {
+						gen.emit(fn);
+					} else {
+						out.println(".globl main");
+						out.println("main:");
+						out.println("    push %rbp");
+						out.println("    mov %rsp, %rbp");
+						gen.gen(stmt);
+						if (!(stmt instanceof ReturnNode)) {
+							out.println("    mov %rbp, %rsp");
+							out.println("    pop %rbp");
+							out.println("    ret");
+						}
+					}
+				}
+			} else {
+				throw new RuntimeException("Top-level node is not a block");
+			}
         }
 
         Process gcc = new ProcessBuilder("gcc", "-o", "out", "out.s").inheritIO().start();

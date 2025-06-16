@@ -2,9 +2,9 @@ package compiler;
 
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import compiler.ast.*;
-import compiler.util.MyPrintWriter;
 
 class CodeGen {
 	private final PrintWriter out;
@@ -16,7 +16,28 @@ class CodeGen {
         this.out = out;
     }
 
-    private void gen(Node node) {
+	void emit(FuncDefNode fn) {
+        out.printf(".globl %s\n", fn.name);
+        out.printf("%s:\n", fn.name);
+        out.println("    push %rbp");
+        out.println("    mov %rsp, %rbp");
+
+        stackOffset = 0;
+        localVars.clear();
+
+        List<Node> stmts = fn.body.statements;
+        for (Node stmt : stmts) {
+            gen(stmt);
+        }
+
+        if (stmts.isEmpty() || !(stmts.get(stmts.size() - 1) instanceof ReturnNode)) {
+            out.println("    mov %rbp, %rsp");
+            out.println("    pop %rbp");
+            out.println("    ret");
+        }
+    }
+
+    public void gen(Node node) {
         if (node instanceof compiler.ast.BlockNode block) {
             for (Node stmt : block.statements) gen(stmt);
 
@@ -58,20 +79,28 @@ class CodeGen {
                 default -> throw new RuntimeException("Unsupported operator");
             }
 
-        } else if (node instanceof compiler.ast.VarDeclNode var) {
-            stackOffset -= 8;
-            localVars.put(var.name, stackOffset);
-            gen(var.value);
-            out.printf("    mov %%rax, %d(%%rbp)\n", stackOffset);
+		} else if (node instanceof VarDeclNode decl) {
+			stackOffset -= 8;
+			localVars.put(decl.name, stackOffset);
 
-        } else if (node instanceof compiler.ast.AssignNode assign) {
-            Integer offset = localVars.get(assign.name);
-            if (offset == null) throw new RuntimeException("Undefined variable: " + assign.name);
+			if (decl.value != null) {
+				gen(decl.value);
+				out.printf("    mov %%rax, %d(%%rbp)\n", stackOffset);
+			}
+
+		} else if (node instanceof AssignNode assign) {
             gen(assign.value);
+
+			Integer offset = localVars.get(assign.target.name);
+			if (offset == null) throw new RuntimeException("Undefined variable: " + assign.target.name);
+
             out.printf("    mov %%rax, %d(%%rbp)\n", offset);
 
         } else if (node instanceof compiler.ast.ReturnNode ret) {
-            gen(ret.expr);
+			gen(ret.expr);
+			out.println("    mov %rbp, %rsp");
+			out.println("    pop %rbp");
+			out.println("    ret");
 
         } else if (node instanceof compiler.ast.IfNode ifn) {
             int label = labelCounter++;
@@ -127,30 +156,4 @@ class CodeGen {
         }
     }
 
-	void emit(Node node) {
-        // Emit function definitions first
-        if (node instanceof compiler.ast.BlockNode block) {
-            for (Node stmt : block.statements) {
-                if (stmt instanceof compiler.ast.FuncDefNode) gen(stmt);
-            }
-        }
-
-        // Emit main entry point
-        out.println(".globl main");
-        out.println("main:");
-        out.println("    push %rbp");
-        out.println("    mov %rsp, %rbp");
-
-        if (node instanceof compiler.ast.BlockNode block) {
-            for (Node stmt : block.statements) {
-                if (!(stmt instanceof compiler.ast.FuncDefNode)) gen(stmt);
-            }
-        } else {
-            gen(node);
-        }
-
-        out.println("    mov %rbp, %rsp");
-        out.println("    pop %rbp");
-        out.println("    ret");
-    }
 }
