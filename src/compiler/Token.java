@@ -3,25 +3,17 @@ package compiler;
 //=== TOKENS ===
 public class Token {
 	public enum Kind {
-		NUM, IDENT, INT, RETURN, IF, WHILE, PLUS, MINUS, MUL, DIV, LPAREN, RPAREN, LBRACE, RBRACE, ASSIGN, SEMI, EOF,
-		COMMA
+		NUM, IDENT, PLUS, MINUS, MUL, DIV, EQ, NEQ, LT, GT, LE, GE, ASSIGN, SEMI, COMMA, INT, RETURN, IF, WHILE, LPAREN,
+		RPAREN, LBRACE, RBRACE, EOF
 	}
 
 	Kind kind;
 	int value;
 	String text;
 
-	Token(Kind kind) {
-		this.kind = kind;
-	}
-
-	Token(Kind kind, int value) {
-		this.kind = kind;
-		this.value = value;
-	}
-
-	Token(Kind kind, String text) {
+	Token(Kind kind, String text, int value) {
 		this.kind = kind;
 		this.text = text;
+		this.value = value;
 	}
 }

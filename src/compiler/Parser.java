@@ -13,11 +13,11 @@ class Parser {
 
 	Parser(Lexer lexer) {
 		this.lexer = lexer;
-		this.current = lexer.next();
+		this.current = lexer.nextToken();
 	}
 
 	private void eat(Token.Kind kind) {
-		if (current.kind == kind) current = lexer.next();
+		if (current.kind == kind) current = lexer.nextToken();
 		else throw new RuntimeException("Expected: " + kind);
 	}
 
@@ -47,7 +47,20 @@ class Parser {
 		return block;
 	}
 
-	Node expr() { return add(); }
+	Node compare() {
+		Node node = add();
+		while (current.kind == Token.Kind.EQ || current.kind == Token.Kind.NEQ || current.kind == Token.Kind.LT
+				|| current.kind == Token.Kind.GT || current.kind == Token.Kind.LE || current.kind == Token.Kind.GE) {
+			Token.Kind op = current.kind;
+			eat(op);
+			node = new BinOpNode(node, op, add());
+		}
+		return node;
+	}
+
+	Node expr() {
+		return compare();
+	}
 
 	Node mul() {
         Node node = primary();

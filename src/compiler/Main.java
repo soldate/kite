@@ -3,6 +3,7 @@ package compiler;
 
 import java.io.*;
 import compiler.ast.Node;
+import compiler.util.MyPrintWriter;
 
 
 public class Main {
@@ -12,8 +13,7 @@ public class Main {
         Parser parser = new Parser(lexer);
         Node ast = parser.parse();
 
-		File asmFile = new File("out.s");
-		try (PrintWriter out = new PrintWriter(asmFile)) {
+		try (PrintWriter out = new MyPrintWriter("out.s")) {
 			new CodeGen(out).emit(ast);
         }
 
