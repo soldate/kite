@@ -59,8 +59,9 @@ class Parser {
 	}
 
 	Node expr() {
-		return compare();
+	    return compare();
 	}
+
 
 	Node mul() {
         Node node = primary();
@@ -111,14 +112,20 @@ class Parser {
 			eat(Token.Kind.RPAREN);
 			return node;
 
+		} else if (current.kind == Token.Kind.TRUE || current.kind == Token.Kind.FALSE) {
+			boolean val = current.kind == Token.Kind.TRUE;
+			eat(current.kind);
+			return new NumNode(val ? 1 : 0);
+
 		} else {
 			throw new RuntimeException("Invalid expression");
 		}
 	}
 
 	Node statement() {
-		if (current.kind == Token.Kind.INT) {
-			eat(Token.Kind.INT);
+		if (current.kind == Token.Kind.INT || current.kind == Token.Kind.BOOL) {
+			Token.Kind type = current.kind;
+			eat(type);
 			String name = current.text;
 			eat(Token.Kind.IDENT);
 
@@ -126,13 +133,13 @@ class Parser {
 				eat(Token.Kind.LPAREN);
 				List<String> params = new ArrayList<>();
 				if (current.kind != Token.Kind.RPAREN) {
-					eat(Token.Kind.INT);
+					eat(type);
 					String paramName = current.text;
 					eat(Token.Kind.IDENT);
 					params.add(paramName);
 					while (current.kind == Token.Kind.COMMA) {
 						eat(Token.Kind.COMMA);
-						eat(Token.Kind.INT);
+						eat(type);
 						paramName = current.text;
 						eat(Token.Kind.IDENT);
 						params.add(paramName);
@@ -141,12 +148,10 @@ class Parser {
 				eat(Token.Kind.RPAREN);
 				Node body = statement();
 				return new FuncDefNode(name, params, (BlockNode) body);
-
 			} else {
-				eat(Token.Kind.ASSIGN);
 				Node expr = expr();
 				eat(Token.Kind.SEMI);
-				return new VarDeclNode("int", name, expr);
+				return new VarDeclNode(type.name().toLowerCase(), name, expr); // "int" ou "bool"
 			}
 		} else if (current.kind == Token.Kind.RETURN) {
             eat(Token.Kind.RETURN);
@@ -174,7 +179,7 @@ class Parser {
             return block();
 
         } else if (current.kind == Token.Kind.IDENT) {
-            String name = current.text;
+			String name = current.text;
             eat(Token.Kind.IDENT);
             if (current.kind == Token.Kind.LPAREN) {
                 eat(Token.Kind.LPAREN);
@@ -199,5 +204,5 @@ class Parser {
         } else {
             throw new RuntimeException("Invalid statement");
         }
-    }
+	}
 }

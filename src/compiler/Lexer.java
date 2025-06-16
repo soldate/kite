@@ -29,6 +29,9 @@ class Lexer {
             String word = sb.toString();
             return switch (word) {
                 case "int" -> new Token(Token.Kind.INT, word, 0);
+			case "bool" -> new Token(Token.Kind.BOOL, word, 0);
+			case "true" -> new Token(Token.Kind.TRUE, word, 1);
+			case "false" -> new Token(Token.Kind.FALSE, word, 0);
                 case "return" -> new Token(Token.Kind.RETURN, word, 0);
                 case "if" -> new Token(Token.Kind.IF, word, 0);
                 case "while" -> new Token(Token.Kind.WHILE, word, 0);
