@@ -33,6 +33,7 @@ class Lexer {
 			case "true" -> new Token(Token.Kind.TRUE, word, 1);
 			case "false" -> new Token(Token.Kind.FALSE, word, 0);
                 case "return" -> new Token(Token.Kind.RETURN, word, 0);
+			case "void" -> new Token(Token.Kind.VOID);
                 case "if" -> new Token(Token.Kind.IF, word, 0);
                 case "while" -> new Token(Token.Kind.WHILE, word, 0);
                 default -> new Token(Token.Kind.IDENT, word, 0);

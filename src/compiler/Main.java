@@ -12,7 +12,7 @@ import compiler.util.MyPrintWriter;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-		String input = args.length > 0 ? args[0] : "int teste() { int x = 10; if (x > 5) { return 1; } return 0; }";
+		String input = args.length > 0 ? args[0] : "void teste() {return;}";
         Lexer lexer = new Lexer(input);
         Parser parser = new Parser(lexer);
         Node ast = parser.parse();

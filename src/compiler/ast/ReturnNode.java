@@ -1,7 +1,7 @@
 package compiler.ast;
 
 public class ReturnNode extends Node {
-	public Node expr;
+	public final Node expr; // pode ser null
 
 	public ReturnNode(Node expr) {
 		this.expr = expr;

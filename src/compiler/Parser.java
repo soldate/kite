@@ -139,11 +139,16 @@ class Parser {
 	}
 
 	Node statement() {
-		if (current.kind == Token.Kind.INT || current.kind == Token.Kind.BOOL) {
+		if (current.kind == Token.Kind.INT || current.kind == Token.Kind.BOOL || current.kind == Token.Kind.VOID) {
 			Token.Kind type = current.kind;
 			eat(type);
 			String name = current.text;
 			eat(Token.Kind.IDENT);
+
+			// Proíbe declaração de variável com tipo void
+			if (type == Token.Kind.VOID && current.kind != Token.Kind.LPAREN) {
+				throw new RuntimeException("Variables cannot be of type void");
+			}
 
 			if (current.kind == Token.Kind.LPAREN) {
 				eat(Token.Kind.LPAREN);
@@ -177,12 +182,16 @@ class Parser {
 				return new VarDeclNode(type.name().toLowerCase(), name, expr);
 			}
 		} else if (current.kind == Token.Kind.RETURN) {
-            eat(Token.Kind.RETURN);
-            Node expr = expr();
-            eat(Token.Kind.SEMI);
-            return new ReturnNode(expr);
-
-        } else if (current.kind == Token.Kind.IF) {
+			eat(Token.Kind.RETURN);
+			if (current.kind == Token.Kind.SEMI) {
+				eat(Token.Kind.SEMI);
+				return new ReturnNode(null); // return sem valor
+			} else {
+				Node expr = expr();
+				eat(Token.Kind.SEMI);
+				return new ReturnNode(expr);
+			}
+		} else if (current.kind == Token.Kind.IF) {
             eat(Token.Kind.IF);
             eat(Token.Kind.LPAREN);
             Node cond = expr();
