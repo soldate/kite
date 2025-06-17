@@ -12,7 +12,8 @@ import compiler.util.MyPrintWriter;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-		String input = args.length > 0 ? args[0] : "void teste() {return;}";
+		String input = args.length > 0 ? args[0]
+				: "int sub(int a, int b) { return a - b; } return sub(8, 5);";
         Lexer lexer = new Lexer(input);
         Parser parser = new Parser(lexer);
         Node ast = parser.parse();

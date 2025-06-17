@@ -10,4 +10,9 @@ public class VarDeclNode extends Node {
 		this.name = name;
 		this.value = value;
 	}
+
+	@Override
+	public String toString() {
+		return "VarDeclNode (name=" + name + ", type=" + type + ", value=" + value + ")";
+	}
 }

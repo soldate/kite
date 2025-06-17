@@ -6,4 +6,9 @@ public class ReturnNode extends Node {
 	public ReturnNode(Node expr) {
 		this.expr = expr;
 	}
+
+	@Override
+	public String toString() {
+		return "ReturnNode (expr=" + expr + ")";
+	}
 }

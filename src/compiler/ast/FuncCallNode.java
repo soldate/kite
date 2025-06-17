@@ -10,4 +10,9 @@ public class FuncCallNode extends Node {
 		this.name = name;
 		this.args = args;
 	}
+
+	@Override
+	public String toString() {
+		return "FuncCallNode (name=" + name + ")";
+	}
 }

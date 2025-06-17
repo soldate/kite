@@ -8,4 +8,9 @@ public class WhileNode extends Node {
 		this.cond = cond;
 		this.body = body;
 	}
+
+	@Override
+	public String toString() {
+		return "WhileNode (cond=" + cond + ")";
+	}
 }

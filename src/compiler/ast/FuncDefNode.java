@@ -14,4 +14,9 @@ public class FuncDefNode extends Node {
 		this.body = body;
 		this.returnType = returnType;
 	}
+
+	@Override
+	public String toString() {
+		return "FuncDefNode (name=" + name + ")";
+	}
 }

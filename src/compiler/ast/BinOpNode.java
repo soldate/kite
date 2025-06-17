@@ -12,4 +12,10 @@ public class BinOpNode extends Node {
 		this.op = op;
 		this.right = right;
 	}
+
+	@Override
+	public String toString() {
+		return "BinOpNode (left: " + left.toString() + " right: " + right.toString() + " op: " + op + ")";
+	}
+
 }

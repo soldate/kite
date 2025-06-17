@@ -8,4 +8,9 @@ public class IfNode extends Node {
 		this.cond = cond;
 		this.thenBranch = thenBranch;
 	}
+
+	@Override
+	public String toString() {
+		return "IfNode (cond=" + cond + ")";
+	}
 }
