@@ -11,12 +11,15 @@ class CodeGen {
     private final Map<String, Integer> localVars = new HashMap<>();
     private int stackOffset = 0;
     private int labelCounter = 0;
+	private String currentReturnType = null;
 
 	CodeGen(PrintWriter out) {
         this.out = out;
     }
 
 	void emit(FuncDefNode fn) {
+		this.currentReturnType = fn.returnType;
+
         out.printf(".globl %s\n", fn.name);
         out.printf("%s:\n", fn.name);
         out.println("    push %rbp");
@@ -108,6 +111,12 @@ class CodeGen {
             out.printf("    mov %%rax, %d(%%rbp)\n", offset);
 
 		} else if (node instanceof compiler.ast.ReturnNode ret) {
+			if (ret.expr != null && currentReturnType.equals("void")) {
+				throw new RuntimeException("Cannot return a value from a void function");
+			}
+			if (ret.expr == null && !currentReturnType.equals("void")) {
+				throw new RuntimeException("Must return a value from a non-void function");
+			}
 			if (ret.expr != null) gen(ret.expr);
 			out.println("    mov %rbp, %rsp");
 			out.println("    pop %rbp");

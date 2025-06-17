@@ -168,7 +168,7 @@ class Parser {
 				}
 				eat(Token.Kind.RPAREN);
 				Node body = statement();
-				return new FuncDefNode(name, params, (BlockNode) body);
+				return new FuncDefNode(name, params, (BlockNode) body, type.name().toLowerCase());
 
 			} else if (current.kind == Token.Kind.ASSIGN) {
 				eat(Token.Kind.ASSIGN);
