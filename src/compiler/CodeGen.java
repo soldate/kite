@@ -47,6 +47,7 @@ class CodeGen {
         out.printf("%s:\n", fn.name);
         out.println("    push %rbp");
         out.println("    mov %rsp, %rbp");
+		out.println("    sub $16, %rsp");
 
         stackOffset = 0;
 		enterScope();
@@ -162,7 +163,7 @@ class CodeGen {
 				gen(fn.args.get(i));
 				out.println("    push %rax");
 			}
-			for (int i = n - 1; i >= 0; i--) {
+			for (int i = 0; i < n; i++) {
 				out.printf("    pop %s\n", argRegs[i]);
 			}
 

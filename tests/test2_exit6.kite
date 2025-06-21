@@ -1,0 +1,3 @@
+int dup(int x) { return x + x; }
+int trip(int y) { return dup(y) + y; }
+int main() { return trip(2); }
