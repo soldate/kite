@@ -1,26 +1,33 @@
 package compiler;
 
-//=== TOKENS ===
 public class Token {
 	public enum Kind {
-		NUM, IDENT, PLUS, MINUS, MUL, DIV, EQ, NEQ, LT, GT, LE, GE, ASSIGN, SEMI, COMMA, VOID, INT, BOOL, RETURN, IF,
-		WHILE,
-		LPAREN,
-		RPAREN, LBRACE, RBRACE, EOF, TRUE, FALSE
+		NUM, IDENT, PLUS, MINUS, MUL, DIV, EQ, NEQ, LT, GT, LE, GE, ASSIGN, SEMI, COMMA, VOID, TYPE, BOOL, RETURN, IF,
+		WHILE, LPAREN, RPAREN, LBRACE, RBRACE, EOF, TRUE, FALSE, STRUCT, DOT
 	}
 
 	Kind kind;
 	int value;
 	String text;
 
+    Token next;
+    Token prev;	
+
 	Token(Kind kind) {
 		this.kind = kind;
 	}
 
-	Token(Kind kind, String text, int value) {
+	Token(Kind kind, String text) {
 		this.kind = kind;
 		this.text = text;
-		this.value = value;
+		try {
+			this.value = Integer.parseInt(text);	
+		} catch (NumberFormatException e) {			
+		}		
+	}
+
+	Token(String word) {
+		this(Kind.valueOf(word.toUpperCase()));
 	}
 
 	@Override

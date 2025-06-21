@@ -123,8 +123,9 @@ class CodeGen {
 			}
 
 		} else if (node instanceof AssignNode assign) {
-            gen(assign.value);
-			out.printf("    mov %%rax, %d(%%rbp)\n", lookupVar(assign.target.name));
+			gen(assign.value);
+			genLValueAddr(assign.target);
+			out.println("    mov %rax, (%rdi)");
 
 		} else if (node instanceof ReturnNode ret) {
 			if (ret.expr != null && currentReturnType.equals("void"))
@@ -172,8 +173,53 @@ class CodeGen {
 		} else if (node instanceof FuncDefNode fd) {
 			emit(fd);
 
+		}else if (node instanceof StructDefNode) {
+				// Nada a gerar — structs são apenas definições de tipo
+						
+		} else if (node instanceof FieldAccessNode fa) {
+			genLValueAddr(fa); // coloca o endereço do campo em %rdi
+			out.println("    mov (%rdi), %rax"); // carrega o valor para %rax
+							
         } else {
 			throw new RuntimeException("Unsupported node type: " + node.getClass().getSimpleName());
         }
     }
+
+	private void genLValueAddr(Node target) {
+		if (target instanceof IdentNode id) {
+			int offset = lookupVar(id.name);
+			out.printf("    lea %d(%%rbp), %%rdi\n", offset);
+		} else if (target instanceof FieldAccessNode fa) {
+			genLValueAddr(fa.target); // gera endereço base → rdi
+			// suponha temporariamente que todo campo tem offset fixo de 8 bytes por campo
+			// (em produção, usaremos um map de structs para offsets corretos)
+			int offset = getFieldOffset(fa); 
+			out.printf("    add $%d, %%rdi\n", offset);
+		} else {
+			throw new RuntimeException("Invalid lvalue");
+		}
+	}
+	
+	private int getFieldOffset(FieldAccessNode fa) {
+		// TEMPORÁRIO: apenas simula campos como 0, 8, 16, etc.
+		// Ex: struct { int x; int y; int z; }
+		// → x = 0, y = 8, z = 16
+		List<String> fields = new ArrayList<>();
+		Node n = fa;
+		while (n instanceof FieldAccessNode f) {
+			fields.add(0, f.field);
+			n = f.target;
+		}
+	
+		String structName = ((IdentNode) n).name; // ex: "p"
+		// Aqui, assumimos a ordem x, y, z apenas como simulação
+		// No futuro: Map<String, StructType> structs
+		return switch (fields.get(fields.size() - 1)) {
+			case "x" -> 0;
+			case "y" -> 8;
+			case "z" -> 16;
+			default -> throw new RuntimeException("Unknown field: " + fields.get(0));
+		};
+	}
+	
 }

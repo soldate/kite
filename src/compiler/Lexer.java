@@ -1,80 +1,130 @@
+
 package compiler;
 
-class Lexer {
-	private final String input;
-	private int pos = 0;
+import java.util.*;
 
-	Lexer(String input) {
-		this.input = input;
-	}
+import compiler.Token.Kind;
 
-	private char next() {
-		return pos < input.length() ? input.charAt(pos++) : '\0';
-	}
+public class Lexer {
+    private final List<Token> tokens = new ArrayList<>();
+    private int pos = 0;
+    private final Set<String> keywords = Set.of("return", "struct");
+    private final Set<String> builtInTypes = Set.of("int");
 
-	private char peek() {
-		return pos < input.length() ? input.charAt(pos) : '\0';
-	}
+    public Lexer(String input) {
+        tokenize(input);
+    }
 
-	Token nextToken() {
-        while (Character.isWhitespace(peek())) next();
-        char c = peek();
-        if (Character.isDigit(c)) {
-            int val = 0;
-            while (Character.isDigit(peek())) val = val * 10 + (next() - '0');
-            return new Token(Token.Kind.NUM, "", val);
-        } else if (Character.isLetter(c)) {
-            StringBuilder sb = new StringBuilder();
-            while (Character.isLetterOrDigit(peek())) sb.append(next());
-            String word = sb.toString();
-            return switch (word) {
-                case "int" -> new Token(Token.Kind.INT, word, 0);
-			case "bool" -> new Token(Token.Kind.BOOL, word, 0);
-			case "true" -> new Token(Token.Kind.TRUE, word, 1);
-			case "false" -> new Token(Token.Kind.FALSE, word, 0);
-                case "return" -> new Token(Token.Kind.RETURN, word, 0);
-			case "void" -> new Token(Token.Kind.VOID);
-                case "if" -> new Token(Token.Kind.IF, word, 0);
-                case "while" -> new Token(Token.Kind.WHILE, word, 0);
-                default -> new Token(Token.Kind.IDENT, word, 0);
-            };
-        } else {
-            switch (next()) {
-                case '+' -> {return new Token(Token.Kind.PLUS, "+", 0);}
-                case '-' -> {return new Token(Token.Kind.MINUS, "-", 0);}
-                case '*' -> {return new Token(Token.Kind.MUL, "*", 0);}
-                case '/' -> {return new Token(Token.Kind.DIV, "/", 0);}
-                case '(' -> {return new Token(Token.Kind.LPAREN, "(", 0);}
-                case ')' -> {return new Token(Token.Kind.RPAREN, ")", 0);}
-                case '{' -> {return new Token(Token.Kind.LBRACE, "{", 0);}
-                case '}' -> {return new Token(Token.Kind.RBRACE, "}", 0);}
-                case ',' -> {return new Token(Token.Kind.COMMA, ",", 0);}
-                case ';' -> {return new Token(Token.Kind.SEMI, ";", 0);}
-                case '=' -> {
-                    if (peek() == '=') {
-                        next(); return new Token(Token.Kind.EQ, "==", 0);
-                    } else return new Token(Token.Kind.ASSIGN, "=", 0);
+    public Token current() {
+        return tokens.get(pos);
+    }
+
+    public Token advance() {
+        if (pos < tokens.size() - 1) pos++;
+        return current();
+    }
+
+    public Token rewind() {
+        if (pos > 0) pos--;
+        return current();
+    }
+
+    public void addType(String name) {
+        builtInTypes.add(name);
+    }
+
+    private void tokenize(String input) {
+        int p = 0;
+        while (p < input.length()) {
+            char ch = input.charAt(p);
+
+            if (Character.isWhitespace(ch)) {
+                p++;
+                continue;
+            }
+
+            if (Character.isDigit(ch)) {
+                int start = p;
+                while (p < input.length() && Character.isDigit(input.charAt(p)))
+                    p++;
+                String num = input.substring(start, p);
+                addToken(new Token(Kind.NUM, num));
+                continue;
+            }
+
+            if (Character.isLetter(ch)) {
+                int start = p;
+                while (p < input.length() && Character.isLetterOrDigit(input.charAt(p)))
+                    p++;
+                String word = input.substring(start, p);
+                if (keywords.contains(word)) {
+                    addToken(new Token(word));
+                } else if (builtInTypes.contains(word)) {
+                    addToken(new Token(Kind.TYPE, word));
+                } else {
+                    addToken(new Token(Kind.IDENT, word));
                 }
-                case '!' -> {
-                    if (peek() == '=') {
-                        next(); return new Token(Token.Kind.NEQ, "!=", 0);
-                    } else throw new RuntimeException("Unexpected: !");
+                continue;
+            }
+
+            // Two-character operators
+            if (p + 1 < input.length()) {
+                String op2 = input.substring(p, p + 2);
+                switch (op2) {
+                    case "==":
+                        addToken(new Token(Kind.EQ, op2));
+                        p += 2;
+                        continue;
+                    case "!=":
+                        addToken(new Token(Kind.NEQ, op2));
+                        p += 2;
+                        continue;
+                    case "<=":
+                        addToken(new Token(Kind.LE, op2));
+                        p += 2;
+                        continue;
+                    case ">=":
+                        addToken(new Token(Kind.GE, op2));
+                        p += 2;
+                        continue;
                 }
-                case '<' -> {
-                    if (peek() == '=') {
-                        next(); return new Token(Token.Kind.LE, "<=", 0);
-                    } else return new Token(Token.Kind.LT, "<", 0);
-                }
-                case '>' -> {
-                    if (peek() == '=') {
-                        next(); return new Token(Token.Kind.GE, ">=", 0);
-                    } else return new Token(Token.Kind.GT, ">", 0);
-                }
-			case '\0' -> {
-				return new Token(Token.Kind.EOF, "", 0);
-			}
-                default -> throw new RuntimeException("Unexpected: " + c);
+            }
+
+            // Single-character tokens
+            char c = input.charAt(p++);
+            switch (c) {
+                case '+' -> addToken(new Token(Kind.PLUS, "+"));
+                case '-' -> addToken(new Token(Kind.MINUS, "-"));
+                case '*' -> addToken(new Token(Kind.MUL, "*"));
+                case '/' -> addToken(new Token(Kind.DIV, "/"));
+                case '=' -> addToken(new Token(Kind.ASSIGN, "="));
+                case '<' -> addToken(new Token(Kind.LT, "<"));
+                case '>' -> addToken(new Token(Kind.GT, ">"));
+                case '(' -> addToken(new Token(Kind.LPAREN, "("));
+                case ')' -> addToken(new Token(Kind.RPAREN, ")"));
+                case '{' -> addToken(new Token(Kind.LBRACE, "{"));
+                case '}' -> addToken(new Token(Kind.RBRACE, "}"));
+                case ',' -> addToken(new Token(Kind.COMMA, ","));
+                case ';' -> addToken(new Token(Kind.SEMI, ";"));
+                case '.' -> addToken(new Token(Kind.DOT, "."));
+                default -> throw new RuntimeException("Unknown character: " + c);
             }
         }
+
+        // EOF
+        addToken(new Token(Kind.EOF, ""));
+    }
+
+    private void addToken(Token token) {
+        if (!tokens.isEmpty()) {
+            Token last = tokens.get(tokens.size() - 1);
+            last.next = token;
+            token.prev = last;
+
+            if (token.kind == Kind.IDENT && last.kind == Kind.IDENT) {
+                last.kind = Kind.TYPE;
+            }
+        }
+        tokens.add(token);
     }
 }

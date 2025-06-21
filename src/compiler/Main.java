@@ -2,44 +2,35 @@
 package compiler;
 
 import java.io.*;
-import java.util.List;
 
 import compiler.ast.BlockNode;
-import compiler.ast.FuncDefNode;
-import compiler.ast.Node;
-import compiler.ast.ReturnNode;
 
 public class Main {
     public static void main(String[] args) throws Exception {
 		String input = args.length > 0 ? args[0]
-				: "int sub(int a, int b) { return a - b; } return sub(8, 5);";
+				: 
+		"""		
+		struct Point {
+			int x;
+			int y;
+		}
+
+		int main() {
+			Point p;
+			p.x = 2;
+			p.y = 3;
+			return p.x + p.y;
+		}	
+		""";
+				;
         Lexer lexer = new Lexer(input);
         Parser parser = new Parser(lexer);
-        Node ast = parser.parse();
+        BlockNode ast = (BlockNode) parser.parse();
 
-		try (PrintWriter out = new PrintWriter("out.s")) {
-			if (ast instanceof BlockNode block) {
-				CodeGen gen = new CodeGen(out);
-				for (Node stmt : block.statements) {
-					if (stmt instanceof FuncDefNode fn) {
-						gen.emit(fn);
-					} else {
-						out.println(".globl main");
-						out.println("main:");
-						out.println("    push %rbp");
-						out.println("    mov %rsp, %rbp");
-						gen.gen(stmt);
-						if (!(stmt instanceof ReturnNode)) {
-							out.println("    mov %rbp, %rsp");
-							out.println("    pop %rbp");
-							out.println("    ret");
-						}
-					}
-				}
-			} else {
-				throw new RuntimeException("Top-level node is not a block");
-			}
-        }
+		PrintWriter out = new PrintWriter("out.s");
+		CodeGen codegen = new CodeGen(out);
+		codegen.gen(ast);
+		out.close();
 
         Process gcc = new ProcessBuilder("gcc", "-o", "out", "out.s").inheritIO().start();
 		gcc.waitFor();
