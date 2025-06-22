@@ -20,6 +20,7 @@ class Parser {
         if (current.kind == kind) {
             current = lexer.advance();
         } else {
+            debugPrintTokens(current, 5);            
             throw new RuntimeException("Expected: " + kind + ", but found: " + current.kind + " (" + current.text + ")");
         }
     }
@@ -68,6 +69,7 @@ class Parser {
 
 	private FuncCallNode funcCall() {
 		String name = current.text;
+        eat(Token.Kind.IDENT);
 		eat(Token.Kind.LPAREN);
 	
 		List<Node> args = new ArrayList<>();
@@ -89,13 +91,70 @@ class Parser {
 		return new FuncCallNode(name, args);
 	}
 	
+    private Node parseIf() {
+        eat(Token.Kind.IF);
+        eat(Token.Kind.LPAREN);
+        Node cond = expr();
+        eat(Token.Kind.RPAREN);
+        Node thenBranch = statement();
+    
+        List<IfNode> elseIfChain = new ArrayList<>();
+        Node elseBranch = null;
+    
+        while (current.kind == Token.Kind.ELSE) {
+            eat(Token.Kind.ELSE);
+    
+            if (current.kind == Token.Kind.IF) {
+                eat(Token.Kind.IF);
+                eat(Token.Kind.LPAREN);
+                Node elifCond = expr();
+                eat(Token.Kind.RPAREN);
+                Node elifBlock = statement();
+                elseIfChain.add(new IfNode(elifCond, elifBlock));
+            } else {
+                elseBranch = statement();
+                break;
+            }
+        }
+    
+        // Encaixa os "else if" e "else" como aninhamento de IfNode
+        Node result = new IfNode(cond, thenBranch);
+        Node currentNode = result;
+    
+        for (IfNode elif : elseIfChain) {
+            ((IfNode) currentNode).elseBranch = elif;
+            currentNode = elif;
+        }
+    
+        if (elseBranch != null) {
+            ((IfNode) currentNode).elseBranch = elseBranch;
+        }
+    
+        return result;
+    }
+
+    private Node parseWhile() {
+        eat(Token.Kind.WHILE);
+        eat(Token.Kind.LPAREN);
+        Node cond = expr();
+        eat(Token.Kind.RPAREN);
+        Node body = block();
+        return new WhileNode(cond, body);
+    }        
 	
     private Node statement() {
 
-		if (current.kind == Kind.IDENT) {
-			if (current.next.kind == Kind.LPAREN) return funcCall();
-			else if (current.next.kind == Kind.ASSIGN) return assign();
-		} 
+        if (current.kind == Kind.IDENT) {
+            if (current.next.kind == Kind.LPAREN) {
+                Node call = funcCall();
+                eat(Token.Kind.SEMI);
+                return call;
+            } else if (current.next.kind == Kind.ASSIGN) {
+                Node assign = assign();
+                eat(Token.Kind.SEMI);
+                return assign;
+            }
+        }        
 
         if (current.kind == Token.Kind.STRUCT) {
             StructDefNode def = structDef();
@@ -113,16 +172,25 @@ class Parser {
             return block();
         }
 
+        if (current.kind == Token.Kind.IF) {
+            return parseIf();
+        }        
+
+        if (current.kind == Token.Kind.WHILE) {
+            return parseWhile();
+        }    
+
         if (current.kind == Token.Kind.RETURN) {
             eat(Token.Kind.RETURN);
+            
             if (current.kind == Token.Kind.SEMI) {
                 eat(Token.Kind.SEMI);
                 return new ReturnNode(null);
-            } else {
-                Node expr = expr();
-                eat(Token.Kind.SEMI);
-                return new ReturnNode(expr);
             }
+        
+            Node expr = expr();
+            eat(Token.Kind.SEMI);
+            return new ReturnNode(expr);
         }
 
         Node expr = expr();
@@ -306,6 +374,27 @@ class Parser {
             return node;
         }
 
-        throw new RuntimeException("Unexpected token: " + current.kind);
+        debugPrintTokens(current, 5);
+        throw new RuntimeException("Unexpected token: " + current);
     }
+
+    private void debugPrintTokens(Token start, int context) {
+        System.err.println("=== Token Stream Debug ===");
+    
+        // Anda alguns tokens para trás (se possível)
+        Token t = start;
+        for (int i = 0; i < context && t.prev != null; i++) {
+            t = t.prev;
+        }
+    
+        // Agora anda para frente e imprime o contexto
+        for (int i = 0; i < context * 2 && t != null; i++) {
+            String marker = (t == current) ? "  <-- current" : "";
+            System.err.printf("[%s] \"%s\"%s\n", t.kind, t.text, marker);
+            t = t.next;
+        }
+    
+        System.err.println("==========================");
+    }
+    
 }

@@ -10,17 +10,16 @@ public class Main {
 		String input = args.length > 0 ? args[0]
 				: 
 		"""		
-		struct Point {
-			int x;
-			int y;
+		void ping() {
+			int x = 1;
+			if (x == 1) return;
+			x = 2;
 		}
 
 		int main() {
-			Point p;
-			p.x = 2;
-			p.y = 3;
-			return p.x + p.y;
-		}	
+			ping();
+			return 42;
+		}
 		""";
 				;
         Lexer lexer = new Lexer(input);
@@ -42,7 +41,7 @@ public class Main {
 			System.out.println(line);
 		}
 		int result = run.waitFor();
-		System.out.println("Exit code: " + (byte) result);
+		System.err.println("Exit code: " + (byte) result);
     }
 }
 

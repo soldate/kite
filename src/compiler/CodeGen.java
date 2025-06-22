@@ -84,7 +84,7 @@ class CodeGen {
 		} else if (node instanceof IdentNode ident) {
 			out.printf("    mov %d(%%rbp), %%rax\n", lookupVar(ident.name));
 
-		} else if (node instanceof compiler.ast.BinOpNode bin) {
+		} else if (node instanceof BinOpNode bin) {
 			gen(bin.left);
 			out.println("    push %rax");
 			gen(bin.right);
@@ -172,12 +172,24 @@ class CodeGen {
 			out.println("    ret");
 
 		} else if (node instanceof IfNode ifn) {
-			int label = labelCounter++;
+			int elseLabel = labelCounter++;
+			int endLabel = labelCounter++;
+		
 			gen(ifn.cond);
 			out.println("    cmp $0, %rax");
-			out.printf("    je .Lend%d\n", label);
+			out.printf("    je .Lelse%d\n", elseLabel);
+		
+			// Then branch
 			gen(ifn.thenBranch);
-			out.printf(".Lend%d:\n", label);
+			out.printf("    jmp .Lend%d\n", endLabel);
+		
+			// Else or Else-If
+			out.printf(".Lelse%d:\n", elseLabel);
+			if (ifn.elseBranch != null)
+				gen(ifn.elseBranch);
+		
+			out.printf(".Lend%d:\n", endLabel);
+		
 
 		} else if (node instanceof WhileNode wn) {
 			int label = labelCounter++;
