@@ -1,6 +1,7 @@
 package compiler;
 
 import java.io.*;
+import java.nio.file.Files;
 
 public class TestRunner {
     public static void main(String[] args) throws Exception {
@@ -13,7 +14,7 @@ public class TestRunner {
         }
 
         for (File file : testFiles) {
-            String code = new String(java.nio.file.Files.readAllBytes(file.toPath()));
+            String code = new String(Files.readAllBytes(file.toPath()));
             String name = file.getName();
             int expected = extractExpectedExitCode(name);
 

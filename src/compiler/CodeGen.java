@@ -91,27 +91,61 @@ class CodeGen {
 			out.println("    pop %rdi");
 
 			switch (bin.op) {
-			case PLUS -> out.println("    add %rdi, %rax");
-			case MINUS -> out.println("    sub %rdi, %rax");
-			case MUL -> out.println("    imul %rdi, %rax");
-			case DIV -> {
-				out.println("    mov %rax, %rcx"); // b → rcx
-				out.println("    mov %rdi, %rax"); // a → rax
-				out.println("    cqo");
-				out.println("    idiv %rcx"); // a / b
-			}
-			case EQ, NEQ, LT, GT, LE, GE -> {
-				out.println("    cmp %rax, %rdi");
-				switch (bin.op) {
-				case EQ -> out.println("    sete %al");
-				case NEQ -> out.println("    setne %al");
-				case LT -> out.println("    setl %al");
-				case GT -> out.println("    setg %al");
-				case LE -> out.println("    setle %al");
-				case GE -> out.println("    setge %al");
+				case PLUS -> out.println("    add %rdi, %rax");
+				case MINUS -> out.println("    sub %rdi, %rax");
+				case MUL -> out.println("    imul %rdi, %rax");
+				case DIV -> {
+					out.println("    mov %rax, %rcx"); // b → rcx
+					out.println("    mov %rdi, %rax"); // a → rax
+					out.println("    cqo");
+					out.println("    idiv %rcx"); // a / b
 				}
-				out.println("    movzb %al, %rax");
-			}
+				case EQ, NEQ, LT, GT, LE, GE -> {
+					out.println("    cmp %rax, %rdi");
+					switch (bin.op) {
+					case EQ -> out.println("    sete %al");
+					case NEQ -> out.println("    setne %al");
+					case LT -> out.println("    setl %al");
+					case GT -> out.println("    setg %al");
+					case LE -> out.println("    setle %al");
+					case GE -> out.println("    setge %al");
+					}
+					out.println("    movzb %al, %rax");
+				}
+				case NOT -> {
+					gen(bin.left); // NOT usa só um lado
+					out.println("    cmp $0, %rax");
+					out.println("    sete %al");
+					out.println("    movzb %al, %rax");
+				}			
+				case AND -> {
+					int label = labelCounter++;
+					gen(bin.left);
+					out.println("    cmp $0, %rax");
+					out.printf("    je .Lfalse%d\n", label);
+					gen(bin.right);
+					out.println("    cmp $0, %rax");
+					out.printf("    je .Lfalse%d\n", label);
+					out.println("    mov $1, %rax");
+					out.printf("    jmp .Lend%d\n", label);
+					out.printf(".Lfalse%d:\n", label);
+					out.println("    mov $0, %rax");
+					out.printf(".Lend%d:\n", label);
+				}			
+				case OR -> {
+					int label = labelCounter++;
+					gen(bin.left);
+					out.println("    cmp $0, %rax");
+					out.printf("    jne .Ltrue%d\n", label);
+					gen(bin.right);
+					out.println("    cmp $0, %rax");
+					out.printf("    jne .Ltrue%d\n", label);
+					out.println("    mov $0, %rax");
+					out.printf("    jmp .Lend%d\n", label);
+					out.printf(".Ltrue%d:\n", label);
+					out.println("    mov $1, %rax");
+					out.printf(".Lend%d:\n", label);
+				}			
 			default -> throw new RuntimeException("Unsupported operator");
 			}
 

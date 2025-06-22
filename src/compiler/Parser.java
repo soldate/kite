@@ -182,8 +182,32 @@ class Parser {
     }
 
     Node expr() {
-        return assign();
+        Node node = logicalOr();
+        if (current.kind == Token.Kind.ASSIGN) {
+            eat(Token.Kind.ASSIGN);
+            return new AssignNode(node, assign());
+        }
+        return node;
     }
+    
+    Node logicalOr() {
+        Node node = logicalAnd();
+        while (current.kind == Token.Kind.OR) {
+            eat(Token.Kind.OR);
+            node = new BinOpNode(node, Token.Kind.OR, logicalAnd());
+        }
+        return node;
+    }
+    
+    Node logicalAnd() {
+        Node node = compare();
+        while (current.kind == Token.Kind.AND) {
+            eat(Token.Kind.AND);
+            node = new BinOpNode(node, Token.Kind.AND, compare());
+        }
+        return node;
+    }
+    
 
 	private Node assign() {
 		Node target = compare();
@@ -223,7 +247,7 @@ class Parser {
     }
 
     Node mul() {
-        Node node = primary();
+        Node node = unary();
         while (current.kind == Token.Kind.MUL || current.kind == Token.Kind.DIV) {
             Token.Kind op = current.kind;
             eat(op);
@@ -231,6 +255,14 @@ class Parser {
         }
         return node;
     }
+
+    Node unary() {
+        if (current.kind == Token.Kind.NOT) {
+            eat(Token.Kind.NOT);
+            return new BinOpNode(new NumNode(0), Token.Kind.NEQ, unary()); // !a → 0 != a
+        }
+        return primary();
+    }    
 
     Node primary() {
         if (current.kind == Token.Kind.NUM) {

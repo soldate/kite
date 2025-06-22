@@ -38,6 +38,22 @@ public class Lexer {
         while (p < input.length()) {
             char ch = input.charAt(p);
 
+            // Ignorar comentários de linha e bloco
+            if (ch == '/' && p + 1 < input.length()) {
+                char next = input.charAt(p + 1);
+                if (next == '/') {
+                    // Comentário de linha: vai até o fim
+                    while (p < input.length() && input.charAt(p) != '\n') p++;
+                    continue;
+                } else if (next == '*') {
+                    // Comentário de bloco: vai até */
+                    p += 2;
+                    while (p + 1 < input.length() && !(input.charAt(p) == '*' && input.charAt(p + 1) == '/')) p++;
+                    p += 2; // pular o */
+                    continue;
+                }
+            }
+
             if (Character.isWhitespace(ch)) {
                 p++;
                 continue;
@@ -70,23 +86,35 @@ public class Lexer {
             // Two-character operators
             if (p + 1 < input.length()) {
                 String op2 = input.substring(p, p + 2);
+                boolean find = true;
+                Kind kind = null;
                 switch (op2) {
                     case "==":
-                        addToken(new Token(Kind.EQ, op2));
-                        p += 2;
-                        continue;
+                        kind = Kind.EQ;
+                        break;
                     case "!=":
-                        addToken(new Token(Kind.NEQ, op2));
-                        p += 2;
-                        continue;
+                        kind = Kind.NEQ;
+                        break;
                     case "<=":
-                        addToken(new Token(Kind.LE, op2));
-                        p += 2;
-                        continue;
+                        kind = Kind.LE;
+                        break;
                     case ">=":
-                        addToken(new Token(Kind.GE, op2));
-                        p += 2;
-                        continue;
+                        kind = Kind.GE;
+                        break;
+                    case "&&":
+                        kind = Kind.AND;
+                        break;
+                    case "||":
+                        kind = Kind.OR;
+                        break;
+                    default:
+                        find = false;
+                        break;
+                }
+                if (find) {
+                    addToken(new Token(kind, op2));
+                    p += 2;
+                    continue;
                 }
             }
 
@@ -107,6 +135,7 @@ public class Lexer {
                 case ',' -> addToken(new Token(Kind.COMMA, ","));
                 case ';' -> addToken(new Token(Kind.SEMI, ";"));
                 case '.' -> addToken(new Token(Kind.DOT, "."));
+                case '!' -> addToken(new Token(Kind.NOT, "."));
                 default -> throw new RuntimeException("Unknown character: " + c);
             }
         }
