@@ -1,14 +1,16 @@
 
 package compiler;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
 import compiler.Token.Kind;
 
 public class Lexer {
     private final List<Token> tokens = new ArrayList<>();
     private int pos = 0;
-    private final Set<String> keywords = Set.of("return", "struct", "if", "else", "while", "true", "false");
+    private final Set<String> keywords = Set.of("class", "return", "if", "else", "while", "true", "false");
     private final Set<String> builtInTypes = Set.of("int", "void"); // , "bool", "char", "float", "double"
 
     public Lexer(String input) {
@@ -135,7 +137,7 @@ public class Lexer {
                 case ',' -> addToken(new Token(Kind.COMMA, ","));
                 case ';' -> addToken(new Token(Kind.SEMI, ";"));
                 case '.' -> addToken(new Token(Kind.DOT, "."));
-                case '!' -> addToken(new Token(Kind.NOT, "."));
+                case '!' -> addToken(new Token(Kind.NOT, "!"));
                 default -> throw new RuntimeException("Unknown character: " + c);
             }
         }
@@ -149,10 +151,10 @@ public class Lexer {
             Token last = tokens.get(tokens.size() - 1);
             last.next = token;
             token.prev = last;
-
+            
             if (token.kind == Kind.IDENT && last.kind == Kind.IDENT) {
                 last.kind = Kind.TYPE;
-            }
+            }            
         }
         tokens.add(token);
     }

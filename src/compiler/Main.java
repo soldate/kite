@@ -1,30 +1,30 @@
 // Mini compiler for Kite - Stage 5: block, return, if, while, and gcc+run
 package compiler;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 
-import compiler.ast.BlockNode;
+import compiler.ast.ProgramNode;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-		String input = args.length > 0 ? args[0]
-				: 
+		String input = args.length > 0 ? args[0]: 
 		"""		
-		void ping() {
-			int x = 1;
-			if (x == 1) return;
-			x = 2;
-		}
-
 		int main() {
-			ping();
-			return 42;
+			int x = 0;
+			int y = 0;
+			while (x < 3) {
+				x = x + 1;
+				y = y + x;
+			}
+			return y;
 		}
 		""";
-				;
+		
         Lexer lexer = new Lexer(input);
         Parser parser = new Parser(lexer);
-        BlockNode ast = (BlockNode) parser.parse();
+        ProgramNode ast = parser.parse();
 
 		PrintWriter out = new PrintWriter("out.s");
 		CodeGen codegen = new CodeGen(out);

@@ -1,0 +1,14 @@
+class list {
+    void add(int x) {
+        // Para fins de teste, não faremos nada com x
+        return;
+    }
+}
+
+int main() {
+    list l;
+    l.add(42);
+    return 99;
+}    
+
+

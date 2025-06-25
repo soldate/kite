@@ -1,0 +1,18 @@
+class list {
+    void add(int x) {
+        // noop
+    }
+
+    void clear() {
+        // noop
+    }
+    
+}
+
+int main() {
+    list l;
+    l.add(1);
+    l.clear();
+    return 42;
+}
+

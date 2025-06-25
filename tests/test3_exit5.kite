@@ -1,11 +1,11 @@
-		struct Point {
-			int x;
-			int y;
-		}
+class point {
+	int x;
+	int y;
+}
 
-		int main() {
-			Point p;
-			p.x = 2;
-			p.y = 3;
-			return p.x + p.y;
-		}	
+int main() {
+	point p;
+	p.x = 2;
+	p.y = 3;
+	return p.x + p.y;
+}

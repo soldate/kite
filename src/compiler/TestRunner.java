@@ -1,7 +1,9 @@
 package compiler;
 
-import java.io.*;
+import java.io.File;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Comparator;
 
 public class TestRunner {
     public static void main(String[] args) throws Exception {
@@ -12,6 +14,8 @@ public class TestRunner {
             System.err.println("No test files found.");
             return;
         }
+
+        Arrays.sort(testFiles, Comparator.comparingInt(f -> extractTestNumber(f.getName())));
 
         for (File file : testFiles) {
             String code = new String(Files.readAllBytes(file.toPath()));
@@ -58,4 +62,19 @@ public class TestRunner {
             return 0;
         }
     }
+
+    private static int extractTestNumber(String filename) {
+        // Espera algo como test5_exit3.kite → retorna 5
+        try {
+            int start = filename.indexOf("test") + 4;
+            int end = filename.indexOf("_", start);
+            if (start >= 4 && end > start) {
+                return Integer.parseInt(filename.substring(start, end));
+            }
+        } catch (Exception e) {
+            // Ignora erros e retorna um número alto (vai pro final)
+        }
+        return Integer.MAX_VALUE;
+    }
+    
 }

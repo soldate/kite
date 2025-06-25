@@ -1,0 +1,14 @@
+class list {
+    int count;
+    
+    void add(int x) {
+        this.count = this.count + 1;
+    }
+}
+
+int main() {
+    list l;
+    l.count = 0;
+    l.add(1);
+    return l.count;
+}

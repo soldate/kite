@@ -1,5 +1,5 @@
 package compiler.ast;
 
-//=== AST ===
 abstract public class Node {
+    public BlockNode currentBlock;
 }

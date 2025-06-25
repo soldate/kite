@@ -2,6 +2,12 @@
 teste de chamada encadeada
 e comentário multi linha
 */
-int dup(int x) { return x + x; }
-int trip(int y) { return dup(y) + y; }
-int main() { return trip(2); }
+class prog {
+    int dup(int x) { return x + x; }
+    int trip(int y) { return dup(y) + y; }    
+}
+
+int main() { 
+    prog p;
+    return p.trip(2); 
+}

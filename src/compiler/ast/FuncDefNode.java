@@ -2,17 +2,24 @@ package compiler.ast;
 
 import java.util.List;
 
-public class FuncDefNode extends Node {
-	public final String name;
-	public final List<String> params;
-	public final BlockNode body;
-	public final String returnType; // novo campo
+import compiler.Parser;
 
-	public FuncDefNode(String name, List<String> params, BlockNode body, String returnType) {
+public class FuncDefNode extends Node {
+	public String name;
+	public List<VarDeclNode> params;
+	public BlockNode body;
+	public String returnType;
+
+	public ClassDefNode parentClass;
+
+	public FuncDefNode(String name, List<VarDeclNode> params, BlockNode body, String returnType) {
 		this.name = name;
+		if (!"main".equals(name)) this.name = Parser.currentClassName + "_" + name;
 		this.params = params;
 		this.body = body;
 		this.returnType = returnType;
+
+		body.parentFunc = this;
 	}
 
 	@Override
