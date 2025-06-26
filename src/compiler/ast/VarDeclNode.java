@@ -18,7 +18,6 @@ public class VarDeclNode extends Node {
 		this.value = value;
 		this.type = type;
 
-		this.currentBlock = Parser.currentBlock;
 		if (currentBlock != null) {
 			currentBlock.locals.add(this);
 			currentBlock.localsMap.put(name, this);

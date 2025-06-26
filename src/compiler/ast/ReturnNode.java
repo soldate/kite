@@ -7,7 +7,6 @@ public class ReturnNode extends Node {
 
 	public ReturnNode(Node expr) {
 		this.expr = expr;
-		this.currentBlock = Parser.currentBlock;
 	}
 
 	@Override

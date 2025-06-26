@@ -12,7 +12,6 @@ public class FuncCallNode extends Node {
 		this.name = name;
 		if (!"main".equals(name)) this.name = Parser.currentClassName + "_" + name;
 		this.args = args;
-		this.currentBlock = Parser.currentBlock;
 	}
 
 	@Override

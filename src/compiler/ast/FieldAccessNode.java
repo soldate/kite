@@ -9,7 +9,6 @@ public class FieldAccessNode extends Node {
     public FieldAccessNode(Node target, String field) {
         this.target = target;
         this.field = field;
-        this.currentBlock = Parser.currentBlock;
     }
 
 	@Override

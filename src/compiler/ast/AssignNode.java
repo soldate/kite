@@ -9,6 +9,5 @@ public class AssignNode extends Node {
     public AssignNode(Node target, Node value) {
         this.target = target;
         this.value = value;
-        this.currentBlock = Parser.currentBlock;
     }
 }

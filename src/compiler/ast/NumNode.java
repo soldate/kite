@@ -7,7 +7,6 @@ public class NumNode extends Node {
 
 	public NumNode(int value) {
 		this.value = value;
-		this.currentBlock = Parser.currentBlock;
 	}
 
 	@Override

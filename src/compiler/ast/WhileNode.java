@@ -8,8 +8,7 @@ public class WhileNode extends Node {
 
 	public WhileNode(Node cond, Node body) {
 		this.cond = cond;
-		this.body = body;
-		this.currentBlock = Parser.currentBlock;
+		this.body = body;		
 	}
 
 	@Override

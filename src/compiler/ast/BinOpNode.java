@@ -12,7 +12,6 @@ public class BinOpNode extends Node {
 		this.left = left;
 		this.op = op;
 		this.right = right;
-		this.currentBlock = Parser.currentBlock;
 	}
 
 	@Override

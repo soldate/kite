@@ -10,7 +10,6 @@ public class IfNode extends Node {
 	public IfNode(Node cond, Node thenBranch) {
 		this.cond = cond;
 		this.thenBranch = thenBranch;
-		this.currentBlock = Parser.currentBlock;
 	}
 
 	@Override

@@ -7,7 +7,6 @@ public class IdentNode extends Node {
 
 	public IdentNode(String name) {
 		this.name = name;
-		this.currentBlock = Parser.currentBlock;
 	}	
 
 	@Override

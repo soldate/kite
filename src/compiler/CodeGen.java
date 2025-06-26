@@ -253,12 +253,6 @@ class CodeGen {
 			}
 
 			out.printf("    call %s\n", fn.name);
-
-		} else if (node instanceof FuncDefNode fd) {
-			emit(fd);
-
-		} else if (node instanceof ClassDefNode) {
-				// Nada a gerar — class são apenas definições de tipo
 		
 		} else if (node instanceof IdentNode ident) {						
 			if (isReference(ident)) out.printf("    lea %d(%%rbp), %%rax\n", lookupVar(ident.name));
