@@ -1,0 +1,60 @@
+class Coord {
+    int x;
+    int y;
+}
+
+class Rect {
+    Coord origin;
+    Coord size;
+
+    int area() {
+        return size.x * size.y;
+    }
+
+    void move(int dx, int dy) {
+        origin.x = origin.x + dx;
+        origin.y = origin.y + dy;
+    }
+
+    int isSquare() {
+        if (size.x == size.y) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+}
+
+class sumClass {
+	int sumTo(int n) {
+		int total = 0;
+		int i = 1;
+		while (i <= n) {
+			total = total + i;
+			i = i + 1;
+		}
+		return total;
+	}
+}
+
+int main() {
+    Rect r;
+    r.origin.x = 0;
+    r.origin.y = 0;
+    r.size.x = 4;
+    r.size.y = 4;
+
+    int area = r.area();
+    int square = r.isSquare();
+    r.move(3, 2);
+
+    int sx = r.origin.x;
+    int sy = r.origin.y;
+
+    int logic = (1 + 2 == 3) && (4 > 3) || (0 == 1);
+    int neg = !0;
+
+    int sum = sumClass.sumTo(5); // 1+2+3+4+5 = 15
+
+    return area + square + sx + sy + logic + neg + sum;
+}

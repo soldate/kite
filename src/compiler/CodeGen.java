@@ -293,26 +293,31 @@ class CodeGen {
 	}
 	
 	private int getFieldOffset(FieldAccessNode fa) {
-		// Caso especial: o target seja 'this'
-		if (fa.target instanceof IdentNode id && id.name.equals("this")) {
+		ClassDefNode classNode = resolveClassOfFieldAccess(fa.target);
+		return resolveFieldOffset(classNode, fa.field);
+	}
+	
+	// Novo método auxiliar
+	private ClassDefNode resolveClassOfFieldAccess(Node target) {
+		if (target instanceof IdentNode id && id.name.equals("this")) {
 			FuncDefNode func = id.currentBlock.parentFunc;
 			ClassDefNode classNode = func.parentClass;
-			if (classNode == null)
-				throw new RuntimeException("'this' used outside of class context");
-			
-			return resolveFieldOffset(classNode, fa.field);
-		}
-	
-		// Caso geral: tentativa de inferir a classe a partir do tipo da variável
-		if (fa.target instanceof IdentNode idTarget) {
+			return classNode;
+
+		}else if (target instanceof IdentNode idTarget) {
 			VarDeclNode varDecl = idTarget.currentBlock.localsMap.get(idTarget.name);
-			ClassDefNode clazz = Parser.prog.types.get(varDecl.type);			
-	
-			return resolveFieldOffset(clazz, fa.field);
+			return Parser.prog.types.get(varDecl.type);
+
+		} else if (target instanceof FieldAccessNode faTarget) {
+			ClassDefNode outerClass = resolveClassOfFieldAccess(faTarget.target);
+			VarDeclNode fieldDecl = outerClass.fields.stream()
+				.filter(f -> f.name.equals(faTarget.field))
+				.findFirst()
+				.orElseThrow(() -> new RuntimeException("Field not found: " + faTarget.field));
+			return Parser.prog.types.get(fieldDecl.type);
 		}
-	
-		throw new RuntimeException("Unsupported FieldAccessNode target: " + fa.target);
-	}
+		throw new RuntimeException("Unsupported FieldAccessNode target: " + target);
+	}	
 	
 	private int resolveFieldOffset(ClassDefNode classNode, String fieldName) {
 		List<VarDeclNode> fields = classNode.fields;
@@ -323,9 +328,5 @@ class CodeGen {
 		}
 		throw new RuntimeException("Field not found: " + fieldName + " in class " + classNode.name);
 	}
-	
-	
-	
-	
 	
 }

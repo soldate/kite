@@ -1,0 +1,14 @@
+class A {
+    B b;
+}
+
+class B {
+    A a;
+    int x;
+}
+
+int main() {
+    A a;
+    a.b.x = 1;
+    return a.b.x;
+}

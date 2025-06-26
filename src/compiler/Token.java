@@ -13,10 +13,6 @@ public class Token {
     Token next;
     Token prev;	
 
-	Token(Kind kind) {
-		this.kind = kind;
-	}
-
 	Token(Kind kind, String text) {
 		this.kind = kind;
 		this.text = text;
@@ -27,7 +23,7 @@ public class Token {
 	}
 
 	Token(String word) {
-		this(Kind.valueOf(word.toUpperCase()));
+		this(Kind.valueOf(word.toUpperCase()), word);
 	}
 
 	@Override

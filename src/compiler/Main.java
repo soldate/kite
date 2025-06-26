@@ -10,16 +10,74 @@ import compiler.ast.ProgramNode;
 public class Main {
     public static void main(String[] args) throws Exception {
 		String input = args.length > 0 ? args[0]: 
-		"""		
-		int main() {
-			int x = 0;
-			int y = 0;
-			while (x < 3) {
-				x = x + 1;
-				y = y + x;
-			}
-			return y;
+		"""	
+		// TODO Arrumar o código para deixar a árvore 
+		// com os dados pra gerar código sem gambiarras
+		// ver se é útil mesmo "gen" em Parser.
+		// Fazer funcionar a.b.x = 1;
+
+class Coord {
+    int x;
+    int y;
+}
+
+class Rect {
+    Coord origin;
+    Coord size;
+
+    int area() {
+        return this.size.x * this.size.y;
+    }
+
+    void move(int dx, int dy) {
+        this.origin.x = this.origin.x + dx;
+        this.origin.y = this.origin.y + dy;
+    }
+
+    int isSquare() {
+        if (this.size.x == this.size.y) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+}
+
+class sumClass {
+	int sumTo(int n) {
+		int total = 0;
+		int i = 1;
+		while (i <= n) {
+			total = total + i;
+			i = i + 1;
 		}
+		return total;
+	}
+}
+
+int main() {
+    Rect r;
+    r.origin.x = 0;
+    r.origin.y = 0;
+    r.size.x = 4;
+    r.size.y = 4;
+
+    int area = r.area();
+    int square = r.isSquare();
+    r.move(3, 2);
+
+    int sx = r.origin.x;
+    int sy = r.origin.y;
+
+    int logic = (1 + 2 == 3) && (4 > 3) || (0 == 1);
+    int neg = !0;
+
+	sumClass s;
+    int sum = s.sumTo(5); // 1+2+3+4+5 = 15
+
+    return area + square + sx + sy + logic + neg + sum;
+}
+
 		""";
 		
         Lexer lexer = new Lexer(input);

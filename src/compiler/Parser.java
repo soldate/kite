@@ -64,30 +64,6 @@ public class Parser {
 		}
 	}
 
-	private FuncCallNode funcCall() {
-		String name = current.text;
-		eat(Token.Kind.IDENT);
-		eat(Token.Kind.LPAREN);
-
-		List<Node> args = new ArrayList<>();
-		if (current.kind != Token.Kind.RPAREN) {
-			do {
-				Node arg = expr();
-				args.add(arg);
-
-				if (current.kind == Token.Kind.COMMA) {
-					eat(Token.Kind.COMMA);
-				} else {
-					break;
-				}
-			} while (true);
-		}
-
-		eat(Token.Kind.RPAREN);
-
-		return new FuncCallNode(name, args);
-	}
-
 	private FuncDefNode funcDef() {
         String returnType = current.text;
         eat(Token.Kind.TYPE);
@@ -96,6 +72,7 @@ public class Parser {
         eat(Token.Kind.LPAREN);
 
         List<VarDeclNode> params = new ArrayList<>();
+		currentBlock = null;
 		if (!"main".equals(methodName)) params.add(new VarDeclNode(currentClassName, "this"));
 
         if (current.kind != Token.Kind.RPAREN) {
@@ -179,16 +156,10 @@ public class Parser {
 
 	private Node statement() {
 
-		if (current.kind == Kind.IDENT) {
-			if (current.next.kind == Kind.LPAREN) {
-				Node call = funcCall();
-				if (current.kind == Token.Kind.SEMI) eat(Token.Kind.SEMI);
-				return call;
-			} else if (current.next.kind == Kind.ASSIGN) {
-				Node assign = assign();
-				eat(Token.Kind.SEMI);
-				return assign;
-			}
+		if (current.kind == Kind.IDENT && current.next.kind == Kind.ASSIGN) {
+			Node assign = assign();
+			eat(Token.Kind.SEMI);
+			return assign;
 		}
 
 		if (current.kind == Token.Kind.CLASS) {
@@ -358,6 +329,73 @@ public class Parser {
 		return node;
 	}
 
+	public void gen(Node node) {
+        if (node instanceof ProgramNode prog) {			
+            for (ClassDefNode clazz : prog.classes) {
+                gen(clazz);				
+            }
+			List<Node> stmts = prog.globalMain.body.getStatements();
+			for (Node stmt : stmts)
+				gen(stmt);			
+        } else if (node instanceof ClassDefNode clazz) {
+            for (FuncDefNode method : clazz.methods) {
+                gen(method);
+            }
+        } else if (node instanceof FuncDefNode func) {
+			List<Node> stmts = func.body.getStatements();
+			for (Node stmt : stmts)
+				gen(stmt);				
+        } else if (node instanceof BlockNode block) {
+            for (Node stmt : block.getStatements()) {
+                gen(stmt);
+            }			
+		} else if (node instanceof BinOpNode bin) {
+			gen(bin.right);
+			gen(bin.left);
+
+			switch (bin.op) {
+				case NOT -> {
+					gen(bin.left);
+				}			
+				case AND -> {
+					gen(bin.left);
+					gen(bin.right);
+				}			
+				case OR -> {
+					gen(bin.left);
+					gen(bin.right);
+				}			
+			}
+
+		} else if (node instanceof VarDeclNode decl) {
+			if (decl.value != null) {
+				gen(decl.value);
+			}
+
+		} else if (node instanceof AssignNode assign) {
+			gen(assign.value);
+
+		} else if (node instanceof ReturnNode ret) {
+			if (ret.expr != null) gen(ret.expr);
+
+		} else if (node instanceof IfNode ifn) {
+			gen(ifn.cond);
+			gen(ifn.thenBranch);
+			if (ifn.elseBranch != null)
+				gen(ifn.elseBranch);
+
+		} else if (node instanceof WhileNode wn) {
+			gen(wn.cond);
+			gen(wn.body);
+
+		} else if (node instanceof FuncCallNode fn) {
+			int n = fn.args.size();
+			for (int i = 0; i < n; i++) {
+				gen(fn.args.get(i));
+			}
+		}
+	}	
+
 	ProgramNode parse() {		
 		prog = new ProgramNode();
 
@@ -390,38 +428,10 @@ public class Parser {
 			return new NumNode(value);
 		}
 
-		if (current.kind == Token.Kind.THIS) {
-			eat(Token.Kind.THIS);
-			Node node = new IdentNode("this");
-			while (current.kind == Token.Kind.DOT) {
-				eat(Token.Kind.DOT);
-				String field = current.text;
-				eat(Token.Kind.IDENT);
-				node = new FieldAccessNode(node, field);
-			}
-			return node;
-		}
-
 		if (current.kind == Token.Kind.IDENT) {
             String name = current.text;
 			Node node = new IdentNode(name);
 			eat(Token.Kind.IDENT);
-
-            // chamada de função
-            if (current.kind == Token.Kind.LPAREN) {
-                eat(Token.Kind.LPAREN);
-                List<Node> args = new ArrayList<>();
-                args.add(new IdentNode("this")); // O primeiro argumento é o objeto (o "this")
-                if (current.kind != Token.Kind.RPAREN) {
-                    args.add(expr());
-                    while (current.kind == Token.Kind.COMMA) {
-                        eat(Token.Kind.COMMA);
-                        args.add(expr());
-                    }
-                }
-                eat(Token.Kind.RPAREN);
-                node = new FuncCallNode(name, args);
-            }            
 
 			while (current.kind == Token.Kind.DOT) {
 				eat(Token.Kind.DOT);
@@ -446,7 +456,7 @@ public class Parser {
 
 					eat(Token.Kind.RPAREN);					
                     String methodName = methodOrField;                    
-					return new FuncCallNode(methodName, args);
+					return new FuncCallNode(name, methodName, args);
 				}
 
 				// Não é método, só acesso a campo
