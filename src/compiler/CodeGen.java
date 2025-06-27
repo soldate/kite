@@ -63,6 +63,12 @@ class CodeGen {
         throw new RuntimeException("Undefined variable: " + name);
     }
 
+	private int getClassSize(String className) {
+		ClassDefNode clazz = Parser.prog.types.get(className);
+		if (clazz == null) throw new RuntimeException("Unknown class: " + className);
+		return clazz.fields.size() * 8;
+	}	
+
 	void emit(FuncDefNode fn) {
 		this.currentReturnType = fn.returnType;
 
@@ -70,10 +76,31 @@ class CodeGen {
 		out.printf("%s:\n", fn.name);
 		out.println("    push %rbp");
 		out.println("    mov %rsp, %rbp");
-		out.println("    sub $24, %rsp");
+		out.println("    sub $256, %rsp");
 
 		stackOffset = 0;
 		enterScope();
+
+		for (VarDeclNode decl : fn.currentBlock.locals) {
+			ClassDefNode clazz = Parser.prog.types.get(decl.type);
+			if (clazz != null) {
+				// Alocação inline de struct + ponteiro na stack
+				int classSize = getClassSize(clazz.name); // tamanho em bytes (8 * numCampos)
+				stackOffset -= classSize;
+				int structOffset = stackOffset;
+				
+				stackOffset -= 8; // espaço para o ponteiro
+				int ptrOffset = stackOffset;
+		
+				scopes.peek().put(decl.name, ptrOffset);
+				
+				// mov endereço do struct em %rax
+				out.printf("    lea %d(%%rbp), %%rax\n", structOffset);
+				out.printf("    mov %%rax, %d(%%rbp)\n", ptrOffset); // salva ponteiro
+			} else {
+				declareVar(decl.name); // tipo primitivo normal
+			}
+		}		
 
 		String[] argRegs = { "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9" };
 		for (int i = 0; i < fn.params.size(); i++) {
@@ -183,12 +210,28 @@ class CodeGen {
 
 		} else if (node instanceof VarDeclNode decl) {
 			declareVar(decl.name);
-			if (decl.value != null) {
-				gen(decl.value);
-				out.printf("    mov %%rax, %d(%%rbp)\n", lookupVar(decl.name));
-			}
-
-		} else if (node instanceof AssignNode assign) {
+			ClassDefNode clazz = Parser.prog.types.get(decl.type);
+		
+			if (clazz!= null) {
+				// Aloca espaço para todos os campos da classe
+				int sizeInBytes = clazz.fields.size() * 8; // cada campo ocupa 8 bytes
+		
+				// Reserva espaço para o objeto inteiro
+				stackOffset -= sizeInBytes;
+				scopes.peek().put(decl.name, stackOffset);
+		
+				// Ponteiro já está implícito via lea no acesso à variável
+				// Nenhuma inicialização por enquanto
+		
+			} else {
+				// Caso primitivo (int, bool etc.)
+				if (decl.value != null) {
+					gen(decl.value);
+					out.printf("    mov %%rax, %d(%%rbp)\n", lookupVar(decl.name));
+				}
+			}			
+			
+		}  else if (node instanceof AssignNode assign) {
 			gen(assign.value); // resultado em %rax
 
 			if (assign.target instanceof IdentNode ident) {
@@ -320,13 +363,30 @@ class CodeGen {
 	}	
 	
 	private int resolveFieldOffset(ClassDefNode classNode, String fieldName) {
-		List<VarDeclNode> fields = classNode.fields;
-		for (int i = 0; i < fields.size(); i++) {
-			if (fields.get(i).name.equals(fieldName)) {
-				return i * 8;
+		int offset = 0;
+	
+		for (VarDeclNode field : classNode.fields) {
+			if (field.name.equals(fieldName)) {
+				return offset;
 			}
+			offset += getSizeOf(field.type);
 		}
+	
 		throw new RuntimeException("Field not found: " + fieldName + " in class " + classNode.name);
 	}
+
+	private int getSizeOf(String type) {
+		ClassDefNode classDef = Parser.prog.types.get(type);
+		if (classDef != null) {
+			int size = 0;
+			for (VarDeclNode field : classDef.fields) {
+				size += getSizeOf(field.type); // recursivo para nested fields
+			}
+			return size;
+		}
+		// tipos primitivos assumem 8 bytes (int, bool, etc.)
+		return 8;
+	}
+	
 	
 }

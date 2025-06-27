@@ -7,6 +7,8 @@ public class VarDeclNode extends Node {
 	public String type;
 	public Node value;
 
+	public boolean isStackAllocated;
+
 	public ClassDefNode parentClass;
 
 	public VarDeclNode(String type, String name) {
