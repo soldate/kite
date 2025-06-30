@@ -1,6 +1,6 @@
-package compiler.ast;
+package compiler.ast.expr;
 
-import compiler.Parser;
+import compiler.ast.core.Node;
 
 public class FieldAccessNode extends Node {
     public Node target;
@@ -13,6 +13,6 @@ public class FieldAccessNode extends Node {
 
 	@Override
 	public String toString() {
-		return "FieldAccessNode (field=" + field + ")";
+		return "FieldAccessNode (field=" + field + ", target=" + target + ")";
 	}    
 }

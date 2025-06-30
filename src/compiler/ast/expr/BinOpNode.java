@@ -1,7 +1,7 @@
-package compiler.ast;
+package compiler.ast.expr;
 
-import compiler.Parser;
 import compiler.Token;
+import compiler.ast.core.Node;
 
 public class BinOpNode extends Node {
 	public Node left;

@@ -1,6 +1,6 @@
-package compiler.ast;
+package compiler.ast.stmt;
 
-import compiler.Parser;
+import compiler.ast.core.Node;
 
 public class AssignNode extends Node {
     public final Node target;
@@ -10,4 +10,9 @@ public class AssignNode extends Node {
         this.target = target;
         this.value = value;
     }
+
+	@Override
+	public String toString() {
+		return "AssignNode (target: " + target + " value: " + value + ")";
+	}    
 }

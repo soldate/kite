@@ -4,16 +4,16 @@ package compiler;
 import java.util.*;
 
 import compiler.Token.*;
-import compiler.ast.*;
+import compiler.ast.core.*;
+import compiler.ast.expr.*;
+import compiler.ast.stmt.*;
+import compiler.ast.var_def.*;
 
 public class Parser {
 	private final Lexer lexer;
 	private Token current;
-
-    // Variáveis estáticas para rastrear o bloco atual e o nome do método
-    public static BlockNode currentBlock;
-    public static String currentClassName;
-	public static ProgramNode prog;
+	private static BlockNode currentBlock;
+	private static Node currentStatement;
 
     Parser(Lexer lexer) {
 		this.lexer = lexer;
@@ -64,36 +64,37 @@ public class Parser {
 		}
 	}
 
-	private FuncDefNode funcDef() {
+	private FuncDefNode funcDef(ClassNode clazz) {
         String returnType = current.text;
         eat(Token.Kind.TYPE);
-        String methodName = current.text;
+		String methodName = current.text;
+		FuncDefNode fn = null;
+
+		if (clazz == null) fn = new FuncDefNode(returnType, methodName); // main function
+		else fn = new FuncDefNode(clazz, returnType, methodName);
+
         eat(Token.Kind.IDENT);
         eat(Token.Kind.LPAREN);
-
-        List<VarDeclNode> params = new ArrayList<>();
-		currentBlock = null;
-		if (!"main".equals(methodName)) params.add(new VarDeclNode(currentClassName, "this"));
 
         if (current.kind != Token.Kind.RPAREN) {
             String paramType = current.text;
             eat(Token.Kind.TYPE);
             String paramName = current.text;
             eat(Token.Kind.IDENT);
-            params.add(new VarDeclNode(paramType, paramName));
+			new ParamFuncDefNode(fn, paramType, paramName);
             while (current.kind == Token.Kind.COMMA) {
                 eat(Token.Kind.COMMA);
                 paramType = current.text;
                 eat(Token.Kind.TYPE);
                 paramName = current.text;
                 eat(Token.Kind.IDENT);
-                params.add(new VarDeclNode(paramType, paramName));
+                new ParamFuncDefNode(fn, paramType, paramName);
             }
         }
 
         eat(Token.Kind.RPAREN);
-        BlockNode body = block();
-		return new FuncDefNode(methodName, params, body, returnType);
+        block(fn, null, null);		
+		return fn;
 	}
 
 	private boolean isFuncDef() {
@@ -105,10 +106,12 @@ public class Parser {
 
 	private Node parseIf() {
 		eat(Token.Kind.IF);
+		IfNode ifNode = new IfNode();
+		currentStatement = ifNode; 
 		eat(Token.Kind.LPAREN);
-		Node cond = expr();
-		eat(Token.Kind.RPAREN);
-		Node thenBranch = statement();
+		ifNode.cond = expr();
+		eat(Token.Kind.RPAREN);		
+		ifNode.thenBranch = statement();
 
 		List<IfNode> elseIfChain = new ArrayList<>();
 		Node elseBranch = null;
@@ -117,12 +120,13 @@ public class Parser {
 			eat(Token.Kind.ELSE);
 
 			if (current.kind == Token.Kind.IF) {
+				IfNode elseIfNode = new IfNode();
 				eat(Token.Kind.IF);
 				eat(Token.Kind.LPAREN);
-				Node elifCond = expr();
+				elseIfNode.cond = expr();
 				eat(Token.Kind.RPAREN);
-				Node elifBlock = statement();
-				elseIfChain.add(new IfNode(elifCond, elifBlock));
+				elseIfNode.thenBranch = statement();
+				elseIfChain.add(elseIfNode);
 			} else {
 				elseBranch = statement();
 				break;
@@ -130,28 +134,28 @@ public class Parser {
 		}
 
 		// Encaixa os "else if" e "else" como aninhamento de IfNode
-		Node result = new IfNode(cond, thenBranch);
-		Node currentNode = result;
+		IfNode currentNode = ifNode;
 
 		for (IfNode elif : elseIfChain) {
-			((IfNode) currentNode).elseBranch = elif;
+			currentNode.elseBranch = elif;
 			currentNode = elif;
 		}
 
-		if (elseBranch != null) {
-			((IfNode) currentNode).elseBranch = elseBranch;
-		}
+		if (elseBranch != null) currentNode.elseBranch = elseBranch;
 
-		return result;
+		return ifNode;
 	}
 
 	private Node parseWhile() {
 		eat(Token.Kind.WHILE);
+		WhileNode whileNode = new WhileNode();
+		currentStatement = whileNode; 
 		eat(Token.Kind.LPAREN);
 		Node cond = expr();
+		whileNode.cond = cond;
 		eat(Token.Kind.RPAREN);
-		Node body = block();
-		return new WhileNode(cond, body);
+		whileNode.block = statement();
+		return whileNode;
 	}
 
 	private Node statement() {
@@ -162,19 +166,18 @@ public class Parser {
 			return assign;
 		}
 
-		if (current.kind == Token.Kind.CLASS) {
-			ClassDefNode def = classDef();
-			return def;
+		if (current.kind == Token.Kind.LBRACE) {
+			if (currentStatement instanceof WhileNode w) {
+				return block(null, w, null);
+			} else if (currentStatement instanceof IfNode i) {
+				return block(null, null, i);
+			} else {
+				throw new RuntimeException("Unexpected block context: " + currentStatement);
+			}			
 		}
 
 		if (current.kind == Token.Kind.TYPE) {
-			if (current.next.next.kind == Kind.LPAREN) {
-				return funcDef();
-			} else return varDecl();
-		}
-
-		if (current.kind == Token.Kind.LBRACE) {
-			return block();
+			return varDecl(null, null, currentBlock);
 		}
 
 		if (current.kind == Token.Kind.IF) {
@@ -203,29 +206,19 @@ public class Parser {
 		return expr;
 	}
 
-	private ClassDefNode classDef() {
+	private ClassNode classDef(ProgramNode prog) {
 		eat(Token.Kind.CLASS);
-		String className = current.text;
-        currentClassName = className;
+	 	ClassNode clazz = new ClassNode(prog, current.text);		
 		eat(Token.Kind.IDENT);
 		eat(Token.Kind.LBRACE);
-
-		List<VarDeclNode> fields = new ArrayList<>();
-		List<FuncDefNode> methods = new ArrayList<>();
 
 		while (current.kind != Token.Kind.RBRACE) {
 
 			if (isFuncDef()) {				
-				methods.add(funcDef());
+				funcDef(clazz);
 
 			} else if (current.kind == Token.Kind.TYPE) {
-				// Campo
-				String fieldType = current.text;
-				eat(Token.Kind.TYPE);
-				String fieldName = current.text;
-				eat(Token.Kind.IDENT);
-				eat(Token.Kind.SEMI);
-				fields.add(new VarDeclNode(fieldType, fieldName));
+				varDecl(clazz, null, null);
 
 			} else {
 				throw new RuntimeException("Unexpected token in class: " + current);
@@ -233,15 +226,16 @@ public class Parser {
 		}
 
 		eat(Token.Kind.RBRACE);
-		return new ClassDefNode(className, fields, methods);
+		return clazz;
 	}
 
-	private VarDeclNode varDecl() {
+	private VarDeclNode varDecl(ClassNode clazz, FuncDefNode fn, BlockNode block) {
+		VarDeclNode varDecl = null;
 		String type = current.text;
-		eat(Token.Kind.TYPE); // tipo (ex: int ou Point)
+		eat(Token.Kind.TYPE);
 
 		String name = current.text;
-		eat(Token.Kind.IDENT); // nome da variável
+		eat(Token.Kind.IDENT);
 
 		Node value = null;
 		if (current.kind == Token.Kind.ASSIGN) {
@@ -251,7 +245,12 @@ public class Parser {
 
 		if (current.kind == Token.Kind.SEMI) eat(Token.Kind.SEMI);
 
-		return new VarDeclNode(type, name, value);
+		if (clazz != null) varDecl = new FieldDefNode(clazz, type, name, value);
+		else if (fn != null) varDecl = new ParamFuncDefNode(fn, type, name);
+		else if (block != null) varDecl = new LocalVarDeclNode(block, type, name, value);
+		else throw new RuntimeException("Invalid context for variable declaration");
+
+		return varDecl;
 	}
 
 	Node add() {
@@ -264,20 +263,31 @@ public class Parser {
 		return node;
 	}
 
-	BlockNode block() {
-		BlockNode block = new BlockNode();
-        currentBlock = block;
+	BlockNode block(FuncDefNode fn, WhileNode whileNode, IfNode ifNode) {
+		
+		BlockNode block = null;
+
+		if (fn != null) block = new BlockNode(null, fn);
+		else if (whileNode != null) block = new BlockNode(currentBlock, whileNode);
+		else if (ifNode != null) block = new BlockNode(currentBlock, ifNode);
+		else throw new RuntimeException("Invalid context for block");
+
+		// currentBlock is static to avoid passing it as parameter 
+		// to all statements and expressions functions
+		currentBlock = block;
+
 		if (current.kind == Token.Kind.LBRACE) {
 			eat(Token.Kind.LBRACE);
 			while (current.kind != Token.Kind.RBRACE) {                
-				block.addStatement(statement());
+				block.statements.add(statement());
 			}
 			eat(Token.Kind.RBRACE);
 		} else {
 			while (current.kind != Token.Kind.EOF) {
-				block.addStatement(statement());
+				block.statements.add(statement());
 			}
 		}
+		
 		return block;
 	}
 
@@ -329,99 +339,37 @@ public class Parser {
 		return node;
 	}
 
-	public void gen(Node node) {
-        if (node instanceof ProgramNode prog) {			
-            for (ClassDefNode clazz : prog.classes) {
-                gen(clazz);				
-            }
-			List<Node> stmts = prog.globalMain.body.getStatements();
-			for (Node stmt : stmts)
-				gen(stmt);			
-        } else if (node instanceof ClassDefNode clazz) {
-            for (FuncDefNode method : clazz.methods) {
-                gen(method);
-            }
-        } else if (node instanceof FuncDefNode func) {
-			List<Node> stmts = func.body.getStatements();
-			for (Node stmt : stmts)
-				gen(stmt);				
-        } else if (node instanceof BlockNode block) {
-            for (Node stmt : block.getStatements()) {
-                gen(stmt);
-            }			
-		} else if (node instanceof BinOpNode bin) {
-			gen(bin.right);
-			gen(bin.left);
-
-			switch (bin.op) {
-				case NOT -> {
-					gen(bin.left);
-				}			
-				case AND -> {
-					gen(bin.left);
-					gen(bin.right);
-				}			
-				case OR -> {
-					gen(bin.left);
-					gen(bin.right);
-				}			
-			}
-
-		} else if (node instanceof VarDeclNode decl) {
-			if (decl.value != null) {
-				gen(decl.value);
-			}
-
-		} else if (node instanceof AssignNode assign) {
-			gen(assign.value);
-
-		} else if (node instanceof ReturnNode ret) {
-			if (ret.expr != null) gen(ret.expr);
-
-		} else if (node instanceof IfNode ifn) {
-			gen(ifn.cond);
-			gen(ifn.thenBranch);
-			if (ifn.elseBranch != null)
-				gen(ifn.elseBranch);
-
-		} else if (node instanceof WhileNode wn) {
-			gen(wn.cond);
-			gen(wn.body);
-
-		} else if (node instanceof FuncCallNode fn) {
-			int n = fn.args.size();
-			for (int i = 0; i < n; i++) {
-				gen(fn.args.get(i));
-			}
-		}
-	}	
-
 	ProgramNode parse() {		
-		prog = new ProgramNode();
+		ProgramNode prog = new ProgramNode();
 
 		while (current.kind != Token.Kind.EOF) {
 			if (current.kind == Token.Kind.CLASS) {
-				ClassDefNode classDef = classDef();
-				prog.add(classDef);
+				classDef(prog);				
 				
 			} else if (isFuncDef()) {				
-				FuncDefNode func = funcDef();				
+				FuncDefNode func = funcDef(null);				
 				if (!func.name.equals("main")) {
 					throw new RuntimeException("Only 'main' is allowed outside of a class. fn:" + func.name);
 				}
-				if (prog.globalMain != null) {
+				if (prog.main != null) {
 					throw new RuntimeException("Multiple 'main' functions declared.");
 				}
-				prog.globalMain = func;
+				prog.main = func;
 			} else {
 				throw new RuntimeException("Expected class or 'main' function");
 			}
+		}
+
+		for (VarDeclNode v: VarDeclNode.allVars) {
+			ClassNode c = prog.types.get(v.type);
+			if (c != null) v.typeClass = c;
 		}
 	
 		return prog;
 	}
 
 	Node primary() {
+		Node node = null;
 		if (current.kind == Token.Kind.NUM) {
 			int value = Integer.parseInt(current.text);
 			eat(Token.Kind.NUM);
@@ -429,8 +377,11 @@ public class Parser {
 		}
 
 		if (current.kind == Token.Kind.IDENT) {
-            String name = current.text;
-			Node node = new IdentNode(name);
+            String var = current.text;
+			VarDeclNode varDecl = currentBlock.findVarDecl(var);
+			if(varDecl == null) throw new RuntimeException("Variable not found: " + var);								
+			node = new IdentNode(currentBlock, varDecl);
+
 			eat(Token.Kind.IDENT);
 
 			while (current.kind == Token.Kind.DOT) {
@@ -438,41 +389,38 @@ public class Parser {
 				String methodOrField = current.text;
 				eat(Token.Kind.IDENT);
 
+				// current token is method call
 				if (current.kind == Token.Kind.LPAREN) {
-					// É uma chamada de método: l.add(1)
+					FuncCallNode fn = new FuncCallNode(currentBlock, varDecl, methodOrField);
 					eat(Token.Kind.LPAREN);
-					List<Node> args = new ArrayList<>();
-
-					// Primeiro argumento é o objeto (l) — o "this"
-					args.add(node);
 
 					if (current.kind != Token.Kind.RPAREN) {
-						args.add(expr());
+						fn.args.add(expr());
 						while (current.kind == Token.Kind.COMMA) {
 							eat(Token.Kind.COMMA);
-							args.add(expr());
+							fn.args.add(expr());
 						}
 					}
 
 					eat(Token.Kind.RPAREN);					
-                    String methodName = methodOrField;                    
-					return new FuncCallNode(name, methodName, args);
-				}
+					node = fn;
 
-				// Não é método, só acesso a campo
-				node = new FieldAccessNode(node, methodOrField);
+				} else {
+					// current token is field					
+					node = new FieldAccessNode(node, methodOrField);
+				}
 			}
 
 			return node;
 		}
-
+/*
 		if (current.kind == Token.Kind.LPAREN) {
 			eat(Token.Kind.LPAREN);
 			Node node = expr();
 			eat(Token.Kind.RPAREN);
 			return node;
 		}
-
+*/
 		debugPrintTokens(current, 5);
 		throw new RuntimeException("Unexpected token: " + current);
 	}

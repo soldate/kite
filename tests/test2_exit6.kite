@@ -4,7 +4,7 @@ e comentário multi linha
 */
 class prog {
     int dup(int x) { return x + x; }
-    int trip(int y) { return dup(y) + y; }    
+    int trip(int y) { return this.dup(y) + y; }    
 }
 
 int main() { 
