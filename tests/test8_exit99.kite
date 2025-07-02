@@ -1,6 +1,5 @@
 class list {
     void add(int x) {
-        // Para fins de teste, não faremos nada com x
         return;
     }
 }

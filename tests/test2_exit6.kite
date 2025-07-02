@@ -1,7 +1,3 @@
-/*
-teste de chamada encadeada
-e comentário multi linha
-*/
 class prog {
     int dup(int x) { return x + x; }
     int trip(int y) { return this.dup(y) + y; }    

@@ -2,7 +2,6 @@ int main() {
     int a = 2;
     int b = 3;
 
-    // Relacionais
     int r1 = a < b;   // 1
     int r2 = a > b;   // 0
     int r3 = a <= b;  // 1
@@ -10,7 +9,6 @@ int main() {
     int r5 = a == b;  // 0
     int r6 = a != b;  // 1
 
-    // Lógicos
     int r7 = r1 && r3;      // 1 && 1 → 1
     int r8 = r2 || r4;      // 0 || 0 → 0
     int r9 = !r5;           // !0 → 1
