@@ -6,7 +6,7 @@ Kite is designed to be as simple as C, with zero-cost abstractions like C++ and 
 
 ### About the Kite Language
 
-**Kite** is a programming language for those who value the essentials of C, C++, and Java — while rejecting the pitfalls and excesses these languages have accumulated over time.
+**Kite** is a programming language for those who value the essentials of C, C++, and Java — while rejecting the pitfalls and excesses these languages have accumulated over time. Kite it's NOT an OO programming language, it has structs that look like a class.
 
 It brings:
 - The **simplicity and efficiency of C**;

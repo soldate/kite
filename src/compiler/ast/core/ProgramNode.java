@@ -1,13 +1,12 @@
 package compiler.ast.core;
 
+import compiler.ast.stmt.FuncDefNode;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import compiler.ast.stmt.FuncDefNode;
-
 public class ProgramNode extends Node {
 
-    public final Map<String, ClassNode> types = new LinkedHashMap<>();
+    public final Map<String, ClassDefNode> types = new LinkedHashMap<>();
     public FuncDefNode main;
 
     @Override

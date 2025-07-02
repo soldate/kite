@@ -44,7 +44,7 @@ public class Parser {
 		}
 	}
 
-	private FuncDefNode funcDef(ClassNode clazz) {
+	private FuncDefNode funcDef(ClassDefNode clazz) {
         String returnType = current.text;
         eat(Token.Kind.TYPE);
 		String methodName = current.text;
@@ -134,7 +134,7 @@ public class Parser {
 		Node cond = expr();
 		whileNode.cond = cond;
 		eat(Token.Kind.RPAREN);
-		whileNode.block = statement();
+		whileNode.body = statement();
 		return whileNode;
 	}
 
@@ -186,9 +186,9 @@ public class Parser {
 		return expr;
 	}
 
-	private ClassNode classDef(ProgramNode prog) {
+	private ClassDefNode classDef(ProgramNode prog) {
 		eat(Token.Kind.CLASS);
-	 	ClassNode clazz = new ClassNode(prog, current.text);		
+	 	ClassDefNode clazz = new ClassDefNode(prog, current.text);		
 		eat(Token.Kind.IDENT);
 		eat(Token.Kind.LBRACE);
 
@@ -209,7 +209,7 @@ public class Parser {
 		return clazz;
 	}
 
-	private VarDeclNode varDecl(ClassNode clazz, FuncDefNode fn, BlockNode block) {
+	private VarDeclNode varDecl(ClassDefNode clazz, FuncDefNode fn, BlockNode block) {
 		VarDeclNode varDecl = null;
 		String type = current.text;
 		eat(Token.Kind.TYPE);
@@ -343,13 +343,13 @@ public class Parser {
 		// set typeClass for all variables
 		for (VarDeclNode v: VarDeclNode.allVars) {
 			if (v.typeClass != null) continue;
-			ClassNode c = prog.types.get(v.type);
+			ClassDefNode c = prog.types.get(v.type);
 			if (c != null && !(v.value instanceof NullNode)) v.typeClass = c;
 		}
 
 		// Analyze class dependencies to detect cycles
 		ClassDependencyAnalyzer analyzer = new ClassDependencyAnalyzer();
-		for (ClassNode clazz : prog.types.values()) {
+		for (ClassDefNode clazz : prog.types.values()) {
 			for (VarDeclNode field : clazz.fields.values()) {
 				analyzer.addFieldDependency(clazz.name, field);
 			}

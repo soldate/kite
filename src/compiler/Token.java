@@ -13,7 +13,9 @@ public class Token {
     public Token next;
     public Token prev;
 	
-	public int pos; // position in the input string
+	// position in the input string
+	// for debugging purposes
+	public int pos;
 
 	Token(Kind kind, String text) {
 		this.kind = kind;

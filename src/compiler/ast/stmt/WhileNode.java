@@ -4,7 +4,7 @@ import compiler.ast.core.Node;
 
 public class WhileNode extends Node {
 	public Node cond;
-	public Node block;
+	public Node body;
 
 	@Override
 	public String toString() {

@@ -6,7 +6,7 @@ public class IfNode extends Node {
 	public Node cond;
 	public Node thenBranch;
 	public Node elseBranch;
-	public Node block;
+	public Node body;
 
 	@Override
 	public String toString() {

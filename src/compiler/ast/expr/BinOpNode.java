@@ -3,6 +3,7 @@ package compiler.ast.expr;
 import compiler.Token;
 import compiler.ast.core.Node;
 
+// ex: a + b, a < b, a == b, etc
 public class BinOpNode extends Node {
 	public Node left;
 	public Node right;

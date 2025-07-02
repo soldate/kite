@@ -9,37 +9,40 @@ import java.io.PrintWriter;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-		try{ // TODO deve ser offset, tentar facilitar o código mantendo o erro para debugar melhor.
+		try{ 
 			String input = args.length > 0 ? args[0]: 
 			"""	
-class A {
-    B b;
-}
+			class A {
+				B b;
+			}
 
-class B {
-    A a = null;
-    int x;
-}
+			class B {
+				A a = null;
+				int x;
+			}
 
-int main() {
-    A a;
-    a.b.x = 1;
-    return a.b.x;
-}
+			int main() {
+				A a;
+				a.b.x = 1;
+				return a.b.x;
+			}
 			""";
 			
 			Lexer lexer = new Lexer(input);
 			Parser parser = new Parser(lexer);
 			ProgramNode ast = parser.parse();
-
+			
 			PrintWriter out = new PrintWriter("out.s");
 			CodeGen codegen = new CodeGen(out);
 			codegen.gen(ast);
 			out.close();
 
+			// Compile the generated assembly code using gcc
+			// gcc -no-pie -g -o out out.s			
 			Process gcc = new ProcessBuilder("gcc", "-o", "-g", "out", "out.s").inheritIO().start();
 			gcc.waitFor();
 
+			// ./out; echo "Exit code: $?"
 			Process run = new ProcessBuilder("./out").redirectErrorStream(true).start();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(run.getInputStream()));
 			String line;

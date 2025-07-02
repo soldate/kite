@@ -1,13 +1,13 @@
 package compiler.ast.stmt;
 
+import compiler.ast.core.Node;
+import compiler.ast.var_def.VarDeclNode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import compiler.ast.core.Node;
-import compiler.ast.var_def.VarDeclNode;
-
+// block = {..} can be a function body, while body, if body, etc.  
 public class BlockNode extends Node {
 	public List<Node> statements = new ArrayList<>();
 	public Map<String, VarDeclNode> varLocals = new LinkedHashMap<>();
@@ -20,13 +20,13 @@ public class BlockNode extends Node {
 
 	public BlockNode(BlockNode parentBlock, FuncDefNode fn) {
 		this.fn = fn;
-		this.fn.block = this;
+		this.fn.body = this;
 		this.parentBlock = parentBlock;
 	}
 
 	public BlockNode(BlockNode parentBlock, WhileNode whileNode) {
         this.whileNode = whileNode;
-		this.whileNode.block = this;
+		this.whileNode.body = this;
 		this.parentBlock = parentBlock;
     }
 

@@ -1,6 +1,5 @@
 package compiler.ast.stmt;
 
-import compiler.Parser;
 import compiler.ast.core.Node;
 
 public class ReturnNode extends Node {

@@ -1,9 +1,27 @@
 package compiler.util;
 
-import java.util.*;
 import compiler.ast.expr.NullNode;
 import compiler.ast.var_def.VarDeclNode;
+import java.util.*;
 
+/*
+// The code below is problematic, it has a cyclic dependency.
+// A has a field of type B, and B has a field of type A.
+// It's a problema because 'A a;'' is not just a pointer 'a', 
+// but a stack allocation of object A too.
+// To avoid this, we should initialize some the field to null
+// to broke the cycle.
+//
+// A a = null; In this case 'a' is just a pointer, no allocation.
+
+class A {
+    B b;
+}
+
+class B {
+    A a; // should be 'A a = null;' to compile
+}
+*/
 public class ClassDependencyAnalyzer {
 
     private final Map<String, Set<String>> graph = new HashMap<>();

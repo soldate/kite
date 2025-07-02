@@ -5,6 +5,8 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Comparator;
 
+// Read Kite test files from the "tests" directory, compile them using the Kite compiler.
+// Then call 'gcc' to mount/compile the assembler code.
 public class TestRunner {
     public static void main(String[] args) throws Exception {
         File testDir = new File("tests");
@@ -24,35 +26,31 @@ public class TestRunner {
 
             System.out.printf("Running %s... ", name);
 
-            // 1. Gerar assembly com o compilador Kite
             Process compile = new ProcessBuilder("java", "-cp", "bin", "compiler.Main", code)
                     .redirectOutput(new File("out.s"))
                     .redirectError(ProcessBuilder.Redirect.INHERIT)
                     .start();
             compile.waitFor();
 
-            // 2. Compilar com gcc
             Process gcc = new ProcessBuilder("gcc", "-o", "out", "out.s")
                     .redirectError(ProcessBuilder.Redirect.INHERIT)
                     .start();
             gcc.waitFor();
 
-            // 3. Executar o binário
             Process run = new ProcessBuilder("./out")
                     .start();
             run.waitFor();
             int exit = run.exitValue();
 
-            // 4. Verificar resultado
             if (exit == expected) {
-                System.out.println("✅ Passou (exit code " + exit + ")");
+                System.out.println("✅ Pass (exit code " + exit + ")");
             } else {
-                System.out.println("❌ Falhou (esperado " + expected + ", obteve " + exit + ")");
+                System.out.println("❌ Error (expected " + expected + ", exit " + exit + ")");
             }
         }
     }
 
-    // Exemplo: test3_exit6.kite → retorna 6
+    // Ex: test3_exit6.kite → returns 6
     private static int extractExpectedExitCode(String name) {
         try {
             int start = name.indexOf("exit") + 4;
@@ -64,7 +62,7 @@ public class TestRunner {
     }
 
     private static int extractTestNumber(String filename) {
-        // Espera algo como test5_exit3.kite → retorna 5
+        // Ex: test3_exit6.kite → returns 3
         try {
             int start = filename.indexOf("test") + 4;
             int end = filename.indexOf("_", start);
@@ -72,7 +70,6 @@ public class TestRunner {
                 return Integer.parseInt(filename.substring(start, end));
             }
         } catch (Exception e) {
-            // Ignora erros e retorna um número alto (vai pro final)
         }
         return Integer.MAX_VALUE;
     }

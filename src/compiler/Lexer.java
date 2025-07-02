@@ -1,11 +1,10 @@
 
 package compiler;
 
+import compiler.Token.Kind;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-
-import compiler.Token.Kind;
 
 public class Lexer {
     private final List<Token> tokens = new ArrayList<>();
@@ -40,18 +39,15 @@ public class Lexer {
         while (p < input.length()) {
             char ch = input.charAt(p);
 
-            // Ignorar comentários de linha e bloco
             if (ch == '/' && p + 1 < input.length()) {
                 char next = input.charAt(p + 1);
-                if (next == '/') {
-                    // Comentário de linha: vai até o fim
+                if (next == '/') {                    
                     while (p < input.length() && input.charAt(p) != '\n') p++;
                     continue;
                 } else if (next == '*') {
-                    // Comentário de bloco: vai até */
                     p += 2;
                     while (p + 1 < input.length() && !(input.charAt(p) == '*' && input.charAt(p + 1) == '/')) p++;
-                    p += 2; // pular o */
+                    p += 2;
                     continue;
                 }
             }
@@ -152,6 +148,8 @@ public class Lexer {
             last.next = token;
             token.prev = last;
             
+            // If the last token was an IDENT, and the current is also an IDENT,
+            // we treat the last as a TYPE.
             if (token.kind == Kind.IDENT && last.kind == Kind.IDENT) {
                 last.kind = Kind.TYPE;
             }            

@@ -15,12 +15,10 @@ class CodeGen {
 	private int labelCounter = 0;
 	private String currentReturnType = null;
 
-	// Construtor
 	public CodeGen() {
 		this.out = new PrintWriter(System.out);
 	}
 
-	// Construtor com PrintWriter
 	public CodeGen(PrintWriter out) {
 		this.out = out;
 	}
@@ -44,14 +42,9 @@ class CodeGen {
 			out.printf("    mov %d(%%rbp), %%rdi\n", offset);
 
 		} else if (target instanceof FieldAccessNode fa) {
-			// Começa no ponteiro base
-			genLValueAddr(fa.target); // coloca o ponteiro base em %rdi
+			genLValueAddr(fa.target);  
 			int offset = Util.getFieldOffset(fa);
 			out.printf("    add $%d, %%rdi\n", offset);
-			/*
-			if (fa.target instanceof FieldAccessNode) {
-				out.printf("    mov (%%rdi), %%rdi\n", offset);
-			}*/
 
 		} else {
 			throw new RuntimeException("Invalid lvalue");
@@ -85,7 +78,7 @@ class CodeGen {
 			i++;
 		}
 
-		List<Node> stmts = fn.block.statements;
+		List<Node> stmts = fn.body.statements;
 		for (Node stmt : stmts)
 			gen(stmt);
 
@@ -100,11 +93,11 @@ class CodeGen {
 
 	public void gen(Node node) {
 		if (node instanceof ProgramNode prog) {
-			for (ClassNode clazz : prog.types.values()) {
+			for (ClassDefNode clazz : prog.types.values()) {
 				gen(clazz);
 			}
 			emit(prog.main);
-		} else if (node instanceof ClassNode clazz) {
+		} else if (node instanceof ClassDefNode clazz) {
 			for (FuncDefNode method : clazz.methods.values()) {
 				gen(method);
 			}
@@ -188,7 +181,7 @@ class CodeGen {
 			}
 
 		} else if (node instanceof VarDeclNode decl) {
-			ClassNode clazz = decl.typeClass;
+			ClassDefNode clazz = decl.typeClass;
 
 			if (clazz != null) {
 				int classSize = Util.getClassSize(clazz);
@@ -197,11 +190,9 @@ class CodeGen {
 
 				scopes.peek().put(decl.name, structOffset);
 
-				// mov endereço do struct em %rax
 				out.printf("    lea %d(%%rbp), %%rax\n", structOffset);
 				out.printf("    mov %%rax, %d(%%rbp)\n", structOffset);
 
-				// structs internas
 				for (VarDeclNode field : clazz.fields.values()) {
 					if (field.typeClass != null) {
 						int fieldOffset = Util.resolveFieldOffset(clazz, field.name);
@@ -212,7 +203,7 @@ class CodeGen {
 
 			} else {
 				declareVar(decl.name);
-				// Caso primitivo (int, bool etc.)
+				// int, bool etc.
 				if (decl.value != null) {
 					gen(decl.value);
 					out.printf("    mov %%rax, %d(%%rbp)\n", lookupVar(decl.name));
@@ -220,14 +211,14 @@ class CodeGen {
 			}
 
 		} else if (node instanceof AssignNode assign) {
-			gen(assign.value); // resultado em %rax
+			gen(assign.value); 
 
 			if (assign.target instanceof IdentNode ident) {
 				int offset = lookupVar(ident.varDecl.name);
-				out.printf("    mov %%rax, %d(%%rbp)\n", offset); // valor direto na stack
+				out.printf("    mov %%rax, %d(%%rbp)\n", offset);
 			} else {
-				genLValueAddr(assign.target); // pega endereço em %rdi
-				out.println("    mov %rax, (%rdi)"); // para campos de struct
+				genLValueAddr(assign.target);
+				out.println("    mov %rax, (%rdi)");
 			}
 
 		} else if (node instanceof ReturnNode ret) {
@@ -248,7 +239,6 @@ class CodeGen {
 			out.println("    cmp $0, %rax");
 			out.printf("    je .Lelse%d\n", elseLabel);
 
-			// Then branch
 			gen(ifn.thenBranch);
 			out.printf("    jmp .Lend%d\n", endLabel);
 
@@ -264,7 +254,7 @@ class CodeGen {
 			gen(wn.cond);
 			out.println("    cmp $0, %rax");
 			out.printf("    je .Lend%d\n", label);
-			gen(wn.block);
+			gen(wn.body);
 			out.printf("    jmp .Lbegin%d\n", label);
 			out.printf(".Lend%d:\n", label);
 
@@ -284,14 +274,11 @@ class CodeGen {
 			out.printf("    call %s\n", fn.name);
 
 		} else if (node instanceof IdentNode ident) {
-			// if (isReference(ident)) out.printf(" lea %d(%%rbp), %%rax\n",
-			// lookupVar(ident.varDecl.name));
-			// else
 			out.printf("    mov %d(%%rbp), %%rax\n", lookupVar(ident.varDecl.name));
 
 		} else if (node instanceof FieldAccessNode fa) {
-			genLValueAddr(fa); // coloca o endereço do campo em %rdi
-			out.println("    mov (%rdi), %rax"); // carrega o valor para %rax
+			genLValueAddr(fa);
+			out.println("    mov (%rdi), %rax");
 
 		} else {
 			throw new RuntimeException("Unsupported node type: " + node.getClass().getSimpleName());
