@@ -1,4 +1,4 @@
-package compiler.test;
+package compiler.util;
 
 import java.io.File;
 import java.nio.file.Files;

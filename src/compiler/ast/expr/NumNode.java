@@ -1,6 +1,5 @@
 package compiler.ast.expr;
 
-import compiler.Parser;
 import compiler.ast.core.Node;
 
 public class NumNode extends Node {

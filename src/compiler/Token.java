@@ -3,23 +3,30 @@ package compiler;
 public class Token {
 	public enum Kind {
 		IDENT, NUM, PLUS, MINUS, MUL, DIV, EQ, NEQ, LT, GT, LE, GE, ASSIGN, SEMI, COMMA, TYPE, RETURN, IF, ELSE,
-		WHILE, LPAREN, RPAREN, LBRACE, RBRACE, EOF, TRUE, FALSE, CLASS, DOT, AND, OR, NOT, THIS
+		WHILE, LPAREN, RPAREN, LBRACE, RBRACE, EOF, TRUE, FALSE, CLASS, DOT, AND, OR, NOT, THIS, NULL
 	}
 
-	Kind kind;
-	int value;
-	String text;
+	public Kind kind;
+	public int value;
+	public String text;
 
-    Token next;
-    Token prev;	
+    public Token next;
+    public Token prev;
+	
+	public int pos; // position in the input string
 
 	Token(Kind kind, String text) {
 		this.kind = kind;
 		this.text = text;
+		
 		try {
 			this.value = Integer.parseInt(text);	
 		} catch (NumberFormatException e) {			
 		}		
+
+		// for error messages, we need to know the position in the input string
+		this.pos = Lexer.pos - text.length();
+
 	}
 
 	Token(String word) {

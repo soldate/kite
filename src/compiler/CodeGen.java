@@ -1,22 +1,18 @@
 package compiler;
 
-import java.io.PrintWriter;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
 import compiler.ast.core.*;
 import compiler.ast.expr.*;
 import compiler.ast.stmt.*;
 import compiler.ast.var_def.*;
+import compiler.util.*;
+import java.io.*;
+import java.util.*;
 
 class CodeGen {
 	private final PrintWriter out;
 	private final Deque<Map<String, Integer>> scopes = new ArrayDeque<>();
-    private int stackOffset = 0;
-    private int labelCounter = 0;
+	private int stackOffset = 0;
+	private int labelCounter = 0;
 	private String currentReturnType = null;
 
 	// Construtor
@@ -26,44 +22,48 @@ class CodeGen {
 
 	// Construtor com PrintWriter
 	public CodeGen(PrintWriter out) {
-        this.out = out;
-    }
-	
+		this.out = out;
+	}
+
 	private void declareVar(String name) {
-        stackOffset -= 8;
-        scopes.peek().put(name, stackOffset);
-    }
+		stackOffset -= 8;
+		scopes.peek().put(name, stackOffset);
+	}
 
 	private void enterScope() {
-        scopes.push(new LinkedHashMap<>());
-    }
+		scopes.push(new LinkedHashMap<>());
+	}
 
 	private void exitScope() {
-        scopes.pop();
-    }
+		scopes.pop();
+	}
 
-	private Integer lookupVar(String name) {		
-        for (Map<String, Integer> scope : scopes) {
-            if (scope.containsKey(name)) return scope.get(name);
-        }
-        throw new RuntimeException("Undefined variable: " + name);
-    }
+	private void genLValueAddr(Node target) {
+		if (target instanceof IdentNode id) {
+			int offset = lookupVar(id.varDecl.name);
+			out.printf("    mov %d(%%rbp), %%rdi\n", offset);
 
-	private int getClassSize(ClassNode clazz) {
-		return clazz.fields.size() * 8;
-	}		
+		} else if (target instanceof FieldAccessNode fa) {
+			// Começa no ponteiro base
+			genLValueAddr(fa.target); // coloca o ponteiro base em %rdi
+			int offset = Util.getFieldOffset(fa);
+			out.printf("    add $%d, %%rdi\n", offset);
+			/*
+			if (fa.target instanceof FieldAccessNode) {
+				out.printf("    mov (%%rdi), %%rdi\n", offset);
+			}*/
 
-	private int getSizeOf(ClassNode classDef) {
-		if (classDef != null) {
-			int size = 0;
-			for (VarDeclNode field : classDef.fields.values()) {
-				size += getSizeOf(field.typeClass); // recursivo para nested fields
-			}
-			return size;
+		} else {
+			throw new RuntimeException("Invalid lvalue");
 		}
-		// tipos primitivos assumem 8 bytes (int, bool, etc.)
-		return 8;
-	}	
+	}
+
+	private Integer lookupVar(String name) {
+		for (Map<String, Integer> scope : scopes) {
+			if (scope.containsKey(name)) return scope.get(name);
+		}
+		throw new RuntimeException("Undefined variable: " + name);
+	}
 
 	void emit(FuncDefNode fn) {
 		this.currentReturnType = fn.returnType;
@@ -78,7 +78,7 @@ class CodeGen {
 		enterScope();
 
 		String[] argRegs = { "%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9" };
-		int i=0;
+		int i = 0;
 		for (VarDeclNode param : fn.params.values()) {
 			declareVar(param.name);
 			out.printf("    mov %s, %d(%%rbp)\n", argRegs[i], lookupVar(param.name));
@@ -99,21 +99,21 @@ class CodeGen {
 	}
 
 	public void gen(Node node) {
-        if (node instanceof ProgramNode prog) {			
-            for (ClassNode clazz : prog.types.values()) {
-                gen(clazz);				
-            }
+		if (node instanceof ProgramNode prog) {
+			for (ClassNode clazz : prog.types.values()) {
+				gen(clazz);
+			}
 			emit(prog.main);
-        } else if (node instanceof ClassNode clazz) {
-            for (FuncDefNode method : clazz.methods.values()) {
-                gen(method);
-            }
-        } else if (node instanceof FuncDefNode func) {
-            emit(func);						
-        } else if (node instanceof BlockNode block) {
-            for (Node stmt : block.statements) {
-                gen(stmt);
-            }			
+		} else if (node instanceof ClassNode clazz) {
+			for (FuncDefNode method : clazz.methods.values()) {
+				gen(method);
+			}
+		} else if (node instanceof FuncDefNode func) {
+			emit(func);
+		} else if (node instanceof BlockNode block) {
+			for (Node stmt : block.statements) {
+				gen(stmt);
+			}
 		} else if (node instanceof NumNode num) {
 			out.printf("    mov $%d, %%rax\n", num.value);
 
@@ -124,82 +124,92 @@ class CodeGen {
 			out.println("    pop %rdi");
 
 			switch (bin.op) {
-				case PLUS -> out.println("    add %rdi, %rax");
-				case MINUS -> out.println("    sub %rdi, %rax");
-				case MUL -> out.println("    imul %rdi, %rax");
-				case DIV -> {
-					out.println("    mov %rax, %rcx"); // b → rcx
-					out.println("    mov %rdi, %rax"); // a → rax
-					out.println("    cqo");
-					out.println("    idiv %rcx"); // a / b
+			case PLUS -> out.println("    add %rdi, %rax");
+			case MINUS -> out.println("    sub %rdi, %rax");
+			case MUL -> out.println("    imul %rdi, %rax");
+			case DIV -> {
+				out.println("    mov %rax, %rcx"); // b → rcx
+				out.println("    mov %rdi, %rax"); // a → rax
+				out.println("    cqo");
+				out.println("    idiv %rcx"); // a / b
+			}
+			case EQ, LT, GT, LE, GE, NEQ -> {
+				out.println("    cmp %rdi, %rax");
+				switch (bin.op) {
+				case EQ -> out.println("    sete %al");
+				case LT -> out.println("    setl %al");
+				case GT -> out.println("    setg %al");
+				case LE -> out.println("    setle %al");
+				case GE -> out.println("    setge %al");
+				case NEQ -> out.println("    setne %al");
 				}
-				case EQ, LT, GT, LE, GE, NEQ -> {
-					out.println("    cmp %rdi, %rax");
-					switch (bin.op) {
-					case EQ -> out.println("    sete %al");					
-					case LT -> out.println("    setl %al");
-					case GT -> out.println("    setg %al");
-					case LE -> out.println("    setle %al");
-					case GE -> out.println("    setge %al");
-					case NEQ -> out.println("    setne %al");
-					}
-					out.println("    movzb %al, %rax");
-				}
-				case NOT -> {
-					gen(bin.left);
-					out.println("    cmp $0, %rax");
-					out.println("    sete %al");
-					out.println("    movzb %al, %rax");
-				}			
-				case AND -> {
-					int label = labelCounter++;
-					gen(bin.left);
-					out.println("    cmp $0, %rax");
-					out.printf("    je .Lfalse%d\n", label);
-					gen(bin.right);
-					out.println("    cmp $0, %rax");
-					out.printf("    je .Lfalse%d\n", label);
-					out.println("    mov $1, %rax");
-					out.printf("    jmp .Lend%d\n", label);
-					out.printf(".Lfalse%d:\n", label);
-					out.println("    mov $0, %rax");
-					out.printf(".Lend%d:\n", label);
-				}			
-				case OR -> {
-					int label = labelCounter++;
-					gen(bin.left);
-					out.println("    cmp $0, %rax");
-					out.printf("    jne .Ltrue%d\n", label);
-					gen(bin.right);
-					out.println("    cmp $0, %rax");
-					out.printf("    jne .Ltrue%d\n", label);
-					out.println("    mov $0, %rax");
-					out.printf("    jmp .Lend%d\n", label);
-					out.printf(".Ltrue%d:\n", label);
-					out.println("    mov $1, %rax");
-					out.printf(".Lend%d:\n", label);
-				}			
+				out.println("    movzb %al, %rax");
+			}
+			case AND -> {
+				int label = labelCounter++;
+				gen(bin.left);
+				out.println("    cmp $0, %rax");
+				out.printf("    je .Lfalse%d\n", label);
+				gen(bin.right);
+				out.println("    cmp $0, %rax");
+				out.printf("    je .Lfalse%d\n", label);
+				out.println("    mov $1, %rax");
+				out.printf("    jmp .Lend%d\n", label);
+				out.printf(".Lfalse%d:\n", label);
+				out.println("    mov $0, %rax");
+				out.printf(".Lend%d:\n", label);
+			}
+			case OR -> {
+				int label = labelCounter++;
+				gen(bin.left);
+				out.println("    cmp $0, %rax");
+				out.printf("    jne .Ltrue%d\n", label);
+				gen(bin.right);
+				out.println("    cmp $0, %rax");
+				out.printf("    jne .Ltrue%d\n", label);
+				out.println("    mov $0, %rax");
+				out.printf("    jmp .Lend%d\n", label);
+				out.printf(".Ltrue%d:\n", label);
+				out.println("    mov $1, %rax");
+				out.printf(".Lend%d:\n", label);
+			}
 			default -> throw new RuntimeException("Unsupported operator");
 			}
 
-		} else if (node instanceof VarDeclNode decl) {			
-			ClassNode clazz = decl.typeClass;		
+		} else if (node instanceof UnaryOpNode uop) {
+			gen(uop.expr);
+			switch (uop.op) {
+			case NOT -> {
+				out.println("    cmp $0, %rax");
+				out.println("    sete %al");
+				out.println("    movzb %al, %rax");
+			}
+			default -> throw new RuntimeException("Unsupported unary operator: " + uop.op);
+			}
 
-			if (clazz!= null) {
-				// Alocação inline de struct + ponteiro na stack
-				int classSize = getClassSize(clazz); // tamanho em bytes (8 * numCampos)
+		} else if (node instanceof VarDeclNode decl) {
+			ClassNode clazz = decl.typeClass;
+
+			if (clazz != null) {
+				int classSize = Util.getClassSize(clazz);
 				stackOffset -= classSize;
 				int structOffset = stackOffset;
-				
-				stackOffset -= 8; // espaço para o ponteiro
-				int ptrOffset = stackOffset;
-		
-				scopes.peek().put(decl.name, ptrOffset);
-				
+
+				scopes.peek().put(decl.name, structOffset);
+
 				// mov endereço do struct em %rax
 				out.printf("    lea %d(%%rbp), %%rax\n", structOffset);
-				out.printf("    mov %%rax, %d(%%rbp)\n", ptrOffset); // salva ponteiro
-		
+				out.printf("    mov %%rax, %d(%%rbp)\n", structOffset);
+
+				// structs internas
+				for (VarDeclNode field : clazz.fields.values()) {
+					if (field.typeClass != null) {
+						int fieldOffset = Util.resolveFieldOffset(clazz, field.name);
+						out.printf("    lea %d(%%rbp), %%rax\n", structOffset + fieldOffset);
+						out.printf("    mov %%rax, %d(%%rbp)\n", structOffset + fieldOffset);
+					}
+				}
+
 			} else {
 				declareVar(decl.name);
 				// Caso primitivo (int, bool etc.)
@@ -207,18 +217,18 @@ class CodeGen {
 					gen(decl.value);
 					out.printf("    mov %%rax, %d(%%rbp)\n", lookupVar(decl.name));
 				}
-			}			
-			
-		}  else if (node instanceof AssignNode assign) {
+			}
+
+		} else if (node instanceof AssignNode assign) {
 			gen(assign.value); // resultado em %rax
 
 			if (assign.target instanceof IdentNode ident) {
 				int offset = lookupVar(ident.varDecl.name);
-				out.printf("    mov %%rax, %d(%%rbp)\n", offset);  // valor direto na stack
+				out.printf("    mov %%rax, %d(%%rbp)\n", offset); // valor direto na stack
 			} else {
-				genLValueAddr(assign.target);                      // pega endereço em %rdi
-				out.println("    mov %rax, (%rdi)");               // para campos de struct
-			}			
+				genLValueAddr(assign.target); // pega endereço em %rdi
+				out.println("    mov %rax, (%rdi)"); // para campos de struct
+			}
 
 		} else if (node instanceof ReturnNode ret) {
 			if (ret.expr != null && currentReturnType.equals("void"))
@@ -233,22 +243,20 @@ class CodeGen {
 		} else if (node instanceof IfNode ifn) {
 			int elseLabel = labelCounter++;
 			int endLabel = labelCounter++;
-		
+
 			gen(ifn.cond);
 			out.println("    cmp $0, %rax");
 			out.printf("    je .Lelse%d\n", elseLabel);
-		
+
 			// Then branch
 			gen(ifn.thenBranch);
 			out.printf("    jmp .Lend%d\n", endLabel);
-		
+
 			// Else or Else-If
 			out.printf(".Lelse%d:\n", elseLabel);
-			if (ifn.elseBranch != null)
-				gen(ifn.elseBranch);
-		
+			if (ifn.elseBranch != null) gen(ifn.elseBranch);
+
 			out.printf(".Lend%d:\n", endLabel);
-		
 
 		} else if (node instanceof WhileNode wn) {
 			int label = labelCounter++;
@@ -274,88 +282,20 @@ class CodeGen {
 			}
 
 			out.printf("    call %s\n", fn.name);
-		
-		} else if (node instanceof IdentNode ident) {						
-			//if (isReference(ident)) out.printf("    lea %d(%%rbp), %%rax\n", lookupVar(ident.varDecl.name));
-			//else 
-			out.printf("    mov %d(%%rbp), %%rax\n", lookupVar(ident.varDecl.name));						
+
+		} else if (node instanceof IdentNode ident) {
+			// if (isReference(ident)) out.printf(" lea %d(%%rbp), %%rax\n",
+			// lookupVar(ident.varDecl.name));
+			// else
+			out.printf("    mov %d(%%rbp), %%rax\n", lookupVar(ident.varDecl.name));
 
 		} else if (node instanceof FieldAccessNode fa) {
 			genLValueAddr(fa); // coloca o endereço do campo em %rdi
 			out.println("    mov (%rdi), %rax"); // carrega o valor para %rax
-							
-        } else {
-			throw new RuntimeException("Unsupported node type: " + node.getClass().getSimpleName());
-        }
-    }
 
-	private boolean isReference(IdentNode id) {
-		/*
-		boolean isClass = false;
-		VarDeclNode varDecl = id.currentBlock.varLocals.get(id.name);
-		ClassNode clazz = null;
-		if (varDecl != null) clazz = Parser.prog.types.get(varDecl.type);
-
-		isClass = clazz != null?true:false;
-		*/
-		return id.varDecl.typeClass != null ? true : false;
-	}
-
-	private void genLValueAddr(Node target) {
-		if (target instanceof IdentNode id) {
-			int offset = lookupVar(id.varDecl.name);
-			out.printf("    mov %d(%%rbp), %%rdi\n", offset);				
-
-		} else if (target instanceof FieldAccessNode fa) {
-			genLValueAddr(fa.target);
-			int offset =  getFieldOffset(fa); 			
-			out.printf("    add $%d, %%rdi\n", offset);
 		} else {
-			throw new RuntimeException("Invalid lvalue");
+			throw new RuntimeException("Unsupported node type: " + node.getClass().getSimpleName());
 		}
 	}
-	
-	private int getFieldOffset(FieldAccessNode fa) {
-		ClassNode classNode = resolveClassOfFieldAccess(fa.target);
-		return resolveFieldOffset(classNode, fa.field);
-	}
-	
-	
-	// Novo método auxiliar
-	private ClassNode resolveClassOfFieldAccess(Node target) {		
-		/*
-		if (target instanceof IdentNode id && id.name.equals("this")) {
-			FuncDefNode func = id..currentBlock.parentFunc;
-			ClassNode classNode = func.parentClass;
-			return classNode;
 
-		} else */if (target instanceof IdentNode idTarget) {
-			VarDeclNode varDecl = idTarget.varDecl;
-			return varDecl.typeClass;
-
-		} else 
-		if (target instanceof VarDeclNode faTarget) {
-			return faTarget.typeClass;
-
-		} else if (target instanceof FieldAccessNode faTarget) {
-			ClassNode outerClass = resolveClassOfFieldAccess(faTarget.target);
-			VarDeclNode fieldDecl = outerClass.fields.get(faTarget.field);
-			return fieldDecl.typeClass;
-		}
-		throw new RuntimeException("Unsupported FieldAccessNode target: " + target);
-	}	
-	
-	private int resolveFieldOffset(ClassNode classNode, String fieldName) {
-		int offset = 0;
-	
-		for (VarDeclNode field : classNode.fields.values()) {
-			if (field.name.equals(fieldName)) {
-				return offset;
-			}
-			offset += getSizeOf(field.typeClass);
-		}
-	
-		throw new RuntimeException("Field not found: " + fieldName + " in class " + classNode.name);
-	}
-		
 }

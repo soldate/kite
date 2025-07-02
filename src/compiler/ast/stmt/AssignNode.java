@@ -2,6 +2,7 @@ package compiler.ast.stmt;
 
 import compiler.ast.core.Node;
 
+
 public class AssignNode extends Node {
     public final Node target;
     public final Node value;

@@ -1,23 +1,23 @@
 
 package compiler;
 
-import java.util.*;
-
-import compiler.Token.*;
+import compiler.Token.Kind;
 import compiler.ast.core.*;
 import compiler.ast.expr.*;
 import compiler.ast.stmt.*;
 import compiler.ast.var_def.*;
+import compiler.util.ClassDependencyAnalyzer;
+import java.util.*;
 
 public class Parser {
 	private final Lexer lexer;
-	private Token current;
+	public static Token current;
 	private static BlockNode currentBlock;
 	private static Node currentStatement;
 
     Parser(Lexer lexer) {
 		this.lexer = lexer;
-		this.current = lexer.current();
+		current = lexer.current();
 	}
 
 	private Node assign() {
@@ -35,30 +35,10 @@ public class Parser {
 		return target;
 	}
 
-	private void debugPrintTokens(Token start, int context) {
-		System.err.println("=== Token Stream Debug ===");
-
-		// Anda alguns tokens para trás (se possível)
-		Token t = start;
-		for (int i = 0; i < context && t.prev != null; i++) {
-			t = t.prev;
-		}
-
-		// Agora anda para frente e imprime o contexto
-		for (int i = 0; i < context * 2 && t != null; i++) {
-			String marker = (t == current) ? "  <-- current" : "";
-			System.err.printf("[%s] \"%s\"%s\n", t.kind, t.text, marker);
-			t = t.next;
-		}
-
-		System.err.println("==========================");
-	}
-
 	private void eat(Token.Kind kind) {
 		if (current.kind == kind) {
 			current = lexer.advance();
-		} else {
-			debugPrintTokens(current, 5);
+		} else {			
 			throw new RuntimeException(
 					"Expected: " + kind + ", but found: " + current.kind + " (" + current.text + ")");
 		}
@@ -360,10 +340,21 @@ public class Parser {
 			}
 		}
 
+		// set typeClass for all variables
 		for (VarDeclNode v: VarDeclNode.allVars) {
+			if (v.typeClass != null) continue;
 			ClassNode c = prog.types.get(v.type);
-			if (c != null) v.typeClass = c;
+			if (c != null && !(v.value instanceof NullNode)) v.typeClass = c;
 		}
+
+		// Analyze class dependencies to detect cycles
+		ClassDependencyAnalyzer analyzer = new ClassDependencyAnalyzer();
+		for (ClassNode clazz : prog.types.values()) {
+			for (VarDeclNode field : clazz.fields.values()) {
+				analyzer.addFieldDependency(clazz.name, field);
+			}
+		}
+		analyzer.checkForCycles();		
 	
 		return prog;
 	}
@@ -376,6 +367,11 @@ public class Parser {
 			return new NumNode(value);
 		}
 
+		if (current.kind == Token.Kind.NULL) {
+			eat(Token.Kind.NULL);
+			return new NullNode();
+		}
+		
 		if (current.kind == Token.Kind.IDENT) {
             String var = current.text;
 			VarDeclNode varDecl = currentBlock.findVarDecl(var);
@@ -413,24 +409,24 @@ public class Parser {
 
 			return node;
 		}
-/*
+
 		if (current.kind == Token.Kind.LPAREN) {
 			eat(Token.Kind.LPAREN);
-			Node node = expr();
+			Node n = expr();
 			eat(Token.Kind.RPAREN);
-			return node;
+			return n;
 		}
-*/
-		debugPrintTokens(current, 5);
+		
 		throw new RuntimeException("Unexpected token: " + current);
 	}
 
 	Node unary() {
 		if (current.kind == Token.Kind.NOT) {
 			eat(Token.Kind.NOT);
-			return new BinOpNode(new NumNode(0), Token.Kind.NEQ, unary()); // !a → 0 != a
+			return new UnaryOpNode(Token.Kind.NOT, unary());
 		}
 		return primary();
 	}
+
 
 }

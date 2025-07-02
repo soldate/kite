@@ -8,16 +8,16 @@ class Rect {
     Coord size;
 
     int area() {
-        return size.x * size.y;
+        return this.size.x * this.size.y;
     }
 
     void move(int dx, int dy) {
-        origin.x = origin.x + dx;
-        origin.y = origin.y + dy;
+        this.origin.x = this.origin.x + dx;
+        this.origin.y = this.origin.y + dy;
     }
 
     int isSquare() {
-        if (size.x == size.y) {
+        if (this.size.x == this.size.y) {
             return 1;
         } else {
             return 0;
@@ -54,7 +54,8 @@ int main() {
     int logic = (1 + 2 == 3) && (4 > 3) || (0 == 1);
     int neg = !0;
 
-    int sum = sumClass.sumTo(5); // 1+2+3+4+5 = 15
+    sumClass s;
+    int sum = s.sumTo(5); // 1+2+3+4+5 = 15
 
     return area + square + sx + sy + logic + neg + sum;
 }

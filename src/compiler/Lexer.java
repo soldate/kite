@@ -9,8 +9,8 @@ import compiler.Token.Kind;
 
 public class Lexer {
     private final List<Token> tokens = new ArrayList<>();
-    private int pos = 0;
-    private final Set<String> keywords = Set.of("class", "return", "if", "else", "while", "true", "false");
+    static int pos = 0;
+    private final Set<String> keywords = Set.of("class", "return", "if", "else", "while", "true", "false", "null");
     private final Set<String> builtInTypes = Set.of("int", "void"); // , "bool", "char", "float", "double"
 
     public Lexer(String input) {
