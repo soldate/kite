@@ -1,24 +1,59 @@
-# 🪁 Kite
-
 **Kite aims to replace C, C++ and Java.**
 
-Kite is designed to be as simple as C, with zero-cost abstractions like C++ and with a large standard library inspired by Java.
+## 🪁 Kite Programming Language
 
-### About the Kite Language
+**Kite** is a programming language influenced by three key foundations:
 
-**Kite** is a programming language for those who value the essentials of C, C++, and Java — while rejecting the pitfalls and excesses these languages have accumulated over time. Kite it's NOT an OO programming language, it has structs that look like a class.
+- The **simplicity and explicit control** of C  
+- The **zero-cost abstraction** mindset of C++  
+- And the **class-based, large standard library** approach of Java  
 
-It brings:
-- The **simplicity and efficiency of C**;
-- The **ability to define user types (classes)** like in C++, but without the language’s complexity;
-- And, like Java, the **organization of APIs in classes** and the design decision that **all object access is done via pointers**, making it easier to build a solid and extensible standard library.
+But with a twist:  
+> **In Kite, the programmer decides — not the language designer.**
 
-At the same time, **Kite fixes key problems in these languages**:
-- In C, fat pointers are missing, memory access is risky, and header files are an outdated burden.
-- In C++, the language grew without limits and became overly complex, allowing the same thing to be done in countless different ways.
-- In Java, the use of a VM and garbage collector hurts performance and removes memory control from the programmer — something I consider essential.
+---
 
-**Kite is built on the idea that a programming language should not decide for the programmer, but rather assist them — with clarity, control, and efficiency.**
+### 🧠 Philosophy
 
-It is a lean language project, with **support for inline (stack-allocated) objects that carry an internal pointer**, and a **strong focus on performance, predictability, and simplicity**.
+Kite was created with the belief that a language should not enforce rigid models. Instead, it offers **clarity**, **predictability**, and **explicit choices**.
 
+Everything is class-based. All access is done through **fat pointers**. There are no static fields or methods — to access anything, an object must be instantiated.  
+This enables a powerful and novel error and memory control model.
+
+---
+
+### ✨ Key Features
+
+#### 🔹 Error Handling
+
+The programmer chooses how to deal with failures:
+
+- Manual handling via `obj.error`
+- Or automatic exception throwing with `@WithExceptions`
+
+#### 🔹 Memory Management
+
+Kite supports flexible memory models:
+
+- Full manual control  
+- Optional garbage collector via `@WithGarbageCollector`  
+- Allocation tracking with `@CallMethodWhenAlloc("myLogger")` to monitor and verify cleanup
+
+---
+
+### 🔧 Current Status
+
+Kite is under active development, and already includes:
+
+- A Java-based compiler  
+- x64 Assembly code generation  
+- Primitive types, user-defined classes, methods, and inline objects with internal fat pointers  
+- Dozens of tests in `src/test/kite/`
+
+---
+
+👉 Explore the project on GitHub:  
+[**https://github.com/soldate/kite**](https://github.com/soldate/kite)
+
+Feel free to explore, test, suggest features, or contribute.  
+The goal is simple: **a lean, powerful language that respects the developer.**
