@@ -1,21 +1,23 @@
 
 package compiler;
 
-import compiler.Token.Kind;
+import java.util.*;
+
+import compiler.Token.*;
 import compiler.ast.core.*;
 import compiler.ast.expr.*;
 import compiler.ast.stmt.*;
 import compiler.ast.var_def.*;
-import compiler.util.ClassDependencyAnalyzer;
-import java.util.*;
+import compiler.util.*;
 
 public class Parser {
-	private final Lexer lexer;
 	public static Token current;
 	private static BlockNode currentBlock;
-	private static Node currentStatement;
 
-    Parser(Lexer lexer) {
+	private static Node currentStatement;
+	private final Lexer lexer;
+
+	Parser(Lexer lexer) {
 		this.lexer = lexer;
 		current = lexer.current();
 	}
@@ -35,45 +37,68 @@ public class Parser {
 		return target;
 	}
 
+	private ClassDefNode classDef(ProgramNode prog) {
+		eat(Token.Kind.CLASS);
+		ClassDefNode clazz = new ClassDefNode(prog, current.text);
+		eat(Token.Kind.IDENT);
+		eat(Token.Kind.LBRACE);
+
+		while (current.kind != Token.Kind.RBRACE) {
+
+			if (isFuncDef()) {
+				funcDef(clazz);
+
+			} else if (current.kind == Token.Kind.TYPE) {
+				varDecl(clazz, null, null);
+
+			} else {
+				throw new RuntimeException("Unexpected token in class: " + current);
+			}
+		}
+
+		eat(Token.Kind.RBRACE);
+		return clazz;
+	}
+
 	private void eat(Token.Kind kind) {
 		if (current.kind == kind) {
 			current = lexer.advance();
-		} else {			
+		} else {
 			throw new RuntimeException(
 					"Expected: " + kind + ", but found: " + current.kind + " (" + current.text + ")");
 		}
 	}
 
 	private FuncDefNode funcDef(ClassDefNode clazz) {
-        String returnType = current.text;
-        eat(Token.Kind.TYPE);
+		String returnType = current.text;
+		eat(Token.Kind.TYPE);
 		String methodName = current.text;
 		FuncDefNode fn = null;
 
 		if (clazz == null) fn = new FuncDefNode(returnType, methodName); // main function
 		else fn = new FuncDefNode(clazz, returnType, methodName);
 
-        eat(Token.Kind.IDENT);
-        eat(Token.Kind.LPAREN);
+		eat(Token.Kind.IDENT);
+		eat(Token.Kind.LPAREN);
 
-        if (current.kind != Token.Kind.RPAREN) {
-            String paramType = current.text;
-            eat(Token.Kind.TYPE);
-            String paramName = current.text;
-            eat(Token.Kind.IDENT);
+		if (current.kind != Token.Kind.RPAREN) {
+			String paramType = current.text;
+			eat(Token.Kind.TYPE);
+			String paramName = current.text;
+			eat(Token.Kind.IDENT);
 			new ParamFuncDefNode(fn, paramType, paramName);
-            while (current.kind == Token.Kind.COMMA) {
-                eat(Token.Kind.COMMA);
-                paramType = current.text;
-                eat(Token.Kind.TYPE);
-                paramName = current.text;
-                eat(Token.Kind.IDENT);
-                new ParamFuncDefNode(fn, paramType, paramName);
-            }
-        }
+			while (current.kind == Token.Kind.COMMA) {
+				eat(Token.Kind.COMMA);
+				paramType = current.text;
+				eat(Token.Kind.TYPE);
+				paramName = current.text;
+				eat(Token.Kind.IDENT);
+				new ParamFuncDefNode(fn, paramType, paramName);
+			}
+		}
 
-        eat(Token.Kind.RPAREN);
-        block(fn, null, null);		
+		eat(Token.Kind.RPAREN);
+		block(fn, null, null);
 		return fn;
 	}
 
@@ -87,10 +112,10 @@ public class Parser {
 	private Node parseIf() {
 		eat(Token.Kind.IF);
 		IfNode ifNode = new IfNode();
-		currentStatement = ifNode; 
+		currentStatement = ifNode;
 		eat(Token.Kind.LPAREN);
 		ifNode.cond = expr();
-		eat(Token.Kind.RPAREN);		
+		eat(Token.Kind.RPAREN);
 		ifNode.thenBranch = statement();
 
 		List<IfNode> elseIfChain = new ArrayList<>();
@@ -129,7 +154,7 @@ public class Parser {
 	private Node parseWhile() {
 		eat(Token.Kind.WHILE);
 		WhileNode whileNode = new WhileNode();
-		currentStatement = whileNode; 
+		currentStatement = whileNode;
 		eat(Token.Kind.LPAREN);
 		Node cond = expr();
 		whileNode.cond = cond;
@@ -153,7 +178,7 @@ public class Parser {
 				return block(null, null, i);
 			} else {
 				throw new RuntimeException("Unexpected block context: " + currentStatement);
-			}			
+			}
 		}
 
 		if (current.kind == Token.Kind.TYPE) {
@@ -184,29 +209,6 @@ public class Parser {
 		Node expr = expr();
 		if (current.kind == Token.Kind.SEMI) eat(Token.Kind.SEMI);
 		return expr;
-	}
-
-	private ClassDefNode classDef(ProgramNode prog) {
-		eat(Token.Kind.CLASS);
-	 	ClassDefNode clazz = new ClassDefNode(prog, current.text);		
-		eat(Token.Kind.IDENT);
-		eat(Token.Kind.LBRACE);
-
-		while (current.kind != Token.Kind.RBRACE) {
-
-			if (isFuncDef()) {				
-				funcDef(clazz);
-
-			} else if (current.kind == Token.Kind.TYPE) {
-				varDecl(clazz, null, null);
-
-			} else {
-				throw new RuntimeException("Unexpected token in class: " + current);
-			}
-		}
-
-		eat(Token.Kind.RBRACE);
-		return clazz;
 	}
 
 	private VarDeclNode varDecl(ClassDefNode clazz, FuncDefNode fn, BlockNode block) {
@@ -244,7 +246,7 @@ public class Parser {
 	}
 
 	BlockNode block(FuncDefNode fn, WhileNode whileNode, IfNode ifNode) {
-		
+
 		BlockNode block = null;
 
 		if (fn != null) block = new BlockNode(null, fn);
@@ -252,13 +254,13 @@ public class Parser {
 		else if (ifNode != null) block = new BlockNode(currentBlock, ifNode);
 		else throw new RuntimeException("Invalid context for block");
 
-		// currentBlock is static to avoid passing it as parameter 
+		// currentBlock is static to avoid passing it as parameter
 		// to all statements and expressions functions
 		currentBlock = block;
 
 		if (current.kind == Token.Kind.LBRACE) {
 			eat(Token.Kind.LBRACE);
-			while (current.kind != Token.Kind.RBRACE) {                
+			while (current.kind != Token.Kind.RBRACE) {
 				block.statements.add(statement());
 			}
 			eat(Token.Kind.RBRACE);
@@ -267,7 +269,7 @@ public class Parser {
 				block.statements.add(statement());
 			}
 		}
-		
+
 		return block;
 	}
 
@@ -319,15 +321,50 @@ public class Parser {
 		return node;
 	}
 
-	ProgramNode parse() {		
+	ProgramNode parse() {
 		ProgramNode prog = new ProgramNode();
+
+		if (current.kind == Token.Kind.PACKAGE) {
+			eat(Token.Kind.PACKAGE);
+			StringBuilder sb = new StringBuilder();
+			sb.append(current.text);
+			eat(Token.Kind.IDENT);
+
+			while (current.kind == Token.Kind.DOT) {
+				eat(Token.Kind.DOT);
+				sb.append(".");
+				sb.append(current.text);
+				eat(Token.Kind.IDENT);
+			}
+
+			eat(Token.Kind.SEMI);
+			prog.packageName = sb.toString();
+		}
+
+		if (current.kind == Token.Kind.IMPORT) {
+			eat(Token.Kind.IMPORT);
+			StringBuilder sb = new StringBuilder();
+			sb.append(current.text);
+			eat(Token.Kind.IDENT);
+
+			while (current.kind == Token.Kind.DOT) {
+				eat(Token.Kind.DOT);
+				sb.append(".");
+				sb.append(current.text);
+				eat(Token.Kind.IDENT);
+			}
+
+			eat(Token.Kind.SEMI);
+			String imp = sb.toString();
+			prog.imports.put(imp, imp);
+		}
 
 		while (current.kind != Token.Kind.EOF) {
 			if (current.kind == Token.Kind.CLASS) {
-				classDef(prog);				
-				
-			} else if (isFuncDef()) {				
-				FuncDefNode func = funcDef(null);				
+				classDef(prog);
+
+			} else if (isFuncDef()) {
+				FuncDefNode func = funcDef(null);
 				if (!func.name.equals("main")) {
 					throw new RuntimeException("Only 'main' is allowed outside of a class. fn:" + func.name);
 				}
@@ -341,7 +378,7 @@ public class Parser {
 		}
 
 		// set typeClass for all variables
-		for (VarDeclNode v: VarDeclNode.allVars) {
+		for (VarDeclNode v : VarDeclNode.allVars) {
 			if (v.typeClass != null) continue;
 			ClassDefNode c = prog.types.get(v.type);
 			if (c != null && !(v.value instanceof NullNode)) v.typeClass = c;
@@ -354,8 +391,8 @@ public class Parser {
 				analyzer.addFieldDependency(clazz.name, field);
 			}
 		}
-		analyzer.checkForCycles();		
-	
+		analyzer.checkForCycles();
+
 		return prog;
 	}
 
@@ -371,11 +408,11 @@ public class Parser {
 			eat(Token.Kind.NULL);
 			return new NullNode();
 		}
-		
+
 		if (current.kind == Token.Kind.IDENT) {
-            String var = current.text;
+			String var = current.text;
 			VarDeclNode varDecl = currentBlock.findVarDecl(var);
-			if(varDecl == null) throw new RuntimeException("Variable not found: " + var);								
+			if (varDecl == null) throw new RuntimeException("Variable not found: " + var);
 			node = new IdentNode(currentBlock, varDecl);
 
 			eat(Token.Kind.IDENT);
@@ -398,11 +435,11 @@ public class Parser {
 						}
 					}
 
-					eat(Token.Kind.RPAREN);					
+					eat(Token.Kind.RPAREN);
 					node = fn;
 
 				} else {
-					// current token is field					
+					// current token is field
 					node = new FieldAccessNode(node, methodOrField);
 				}
 			}
@@ -416,7 +453,7 @@ public class Parser {
 			eat(Token.Kind.RPAREN);
 			return n;
 		}
-		
+
 		throw new RuntimeException("Unexpected token: " + current);
 	}
 
@@ -427,6 +464,5 @@ public class Parser {
 		}
 		return primary();
 	}
-
 
 }

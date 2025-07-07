@@ -1,13 +1,12 @@
 package compiler.ast.var_def;
 
-import compiler.ast.core.ClassDefNode;
-import compiler.ast.core.Node;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+
+import compiler.ast.core.*;
 
 // class field, function paramater or local variable declaration
 public abstract class VarDeclNode extends Node {
-	
+
 	// during parser, we have only type names (string) in VarDeclNode objects.
 	// When parser finishes, we will have all types (classes) defined,
 	// so we can resolve typeClass variable (see below).
@@ -26,6 +25,6 @@ public abstract class VarDeclNode extends Node {
 		this.type = type;
 
 		allVars.add(this);
-	}	
+	}
 
 }

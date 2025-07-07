@@ -1,5 +1,8 @@
 package compiler.util;
 
+import java.io.*;
+import java.nio.file.*;
+
 import compiler.*;
 import compiler.ast.core.*;
 import compiler.ast.expr.*;
@@ -47,12 +50,20 @@ public class Util {
 		return fieldOffset;
 	}
 
-	public static int getFieldSize(VarDeclNode field) {		
+	public static int getFieldSize(VarDeclNode field) {
 		if (field.typeClass != null) {
 			return getClassSize(field.typeClass);
 		} else {
 			return 8;
 		}
+	}
+
+	public static String loadKiteFile(String fileName) throws IOException {
+		String kiteFile = fileName.trim();
+		kiteFile = kiteFile.replace(".kite", "_kite");
+		kiteFile = kiteFile.replaceAll("\\.", "/");
+		kiteFile = kiteFile.replaceAll("_kite", ".kite");
+		return new String(Files.readAllBytes(Paths.get(kiteFile)));
 	}
 
 	public static IdentNode resolveBaseIdent(FieldAccessNode fa) {

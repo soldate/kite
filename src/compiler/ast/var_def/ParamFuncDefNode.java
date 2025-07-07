@@ -1,6 +1,6 @@
 package compiler.ast.var_def;
 
-import compiler.ast.stmt.FuncDefNode;
+import compiler.ast.stmt.*;
 
 public class ParamFuncDefNode extends VarDeclNode {
 
@@ -15,5 +15,5 @@ public class ParamFuncDefNode extends VarDeclNode {
 	@Override
 	public String toString() {
 		return "ParamFuncDefNode (name=" + name + ", type=" + type + ", value=" + value + ")";
-	}    
+	}
 }

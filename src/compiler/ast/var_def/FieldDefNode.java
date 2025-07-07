@@ -1,11 +1,10 @@
 package compiler.ast.var_def;
 
-import compiler.ast.core.ClassDefNode;
-import compiler.ast.core.Node;
+import compiler.ast.core.*;
 
 // Represents a field definition in a class.
 public class FieldDefNode extends VarDeclNode {
-	
+
 	public boolean isStackAllocated;
 	public ClassDefNode clazz;
 
@@ -16,10 +15,10 @@ public class FieldDefNode extends VarDeclNode {
 		this.clazz.fields.put(name, this);
 	}
 
-    public FieldDefNode(ClassDefNode clazz, String type, String name, Node value) {
-        this(clazz, type, name);
-        this.value = value;
-    }
+	public FieldDefNode(ClassDefNode clazz, String type, String name, Node value) {
+		this(clazz, type, name);
+		this.value = value;
+	}
 
 	@Override
 	public String toString() {

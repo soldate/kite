@@ -1,6 +1,6 @@
 package compiler.ast.expr;
 
-import compiler.ast.core.Node;
+import compiler.ast.core.*;
 
 public class NumNode extends Node {
 	public int value;

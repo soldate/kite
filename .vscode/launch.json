@@ -15,7 +15,8 @@
             "name": "Main",
             "request": "launch",
             "mainClass": "compiler.Main",
-            "projectName": "kite"
+            "projectName": "kite",
+            "args": "cia.core.main.kite"
         }
     ]
 }

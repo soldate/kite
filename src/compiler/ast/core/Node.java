@@ -1,4 +1,4 @@
 package compiler.ast.core;
 
-abstract public class Node {        
+abstract public class Node {
 }

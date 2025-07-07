@@ -1,12 +1,13 @@
 package compiler;
 
+import java.io.*;
+import java.util.*;
+
 import compiler.ast.core.*;
 import compiler.ast.expr.*;
 import compiler.ast.stmt.*;
 import compiler.ast.var_def.*;
 import compiler.util.*;
-import java.io.*;
-import java.util.*;
 
 class CodeGen {
 	private final PrintWriter out;
@@ -42,7 +43,7 @@ class CodeGen {
 			out.printf("    mov %d(%%rbp), %%rdi\n", offset);
 
 		} else if (target instanceof FieldAccessNode fa) {
-			genLValueAddr(fa.target);  
+			genLValueAddr(fa.target);
 			int offset = Util.getFieldOffset(fa);
 			out.printf("    add $%d, %%rdi\n", offset);
 
@@ -211,7 +212,7 @@ class CodeGen {
 			}
 
 		} else if (node instanceof AssignNode assign) {
-			gen(assign.value); 
+			gen(assign.value);
 
 			if (assign.target instanceof IdentNode ident) {
 				int offset = lookupVar(ident.varDecl.name);

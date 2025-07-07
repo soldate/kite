@@ -1,8 +1,9 @@
 package compiler.util;
 
-import compiler.ast.expr.NullNode;
-import compiler.ast.var_def.VarDeclNode;
 import java.util.*;
+
+import compiler.ast.expr.*;
+import compiler.ast.var_def.*;
 
 /*
 // The code below is problematic, it has a cyclic dependency.
@@ -24,39 +25,40 @@ class B {
 */
 public class ClassDependencyAnalyzer {
 
-    private final Map<String, Set<String>> graph = new HashMap<>();
-    private final Set<String> visited = new HashSet<>();
-    private final Set<String> recursionStack = new HashSet<>();
+	private final Map<String, Set<String>> graph = new HashMap<>();
+	private final Set<String> visited = new HashSet<>();
+	private final Set<String> recursionStack = new HashSet<>();
 
-    public void addFieldDependency(String fromClass, VarDeclNode field) {
-        if (field.typeClass == null) return;
-        if (field.value instanceof NullNode) return; // Trata como ponteiro, não inline
+	private boolean isCyclic(String current) {
+		if (recursionStack.contains(current)) return true;
+		if (visited.contains(current)) return false;
 
-        graph.computeIfAbsent(fromClass, k -> new HashSet<>()).add(field.typeClass.name);
-    }
+		visited.add(current);
+		recursionStack.add(current);
 
-    public void checkForCycles() {
-        for (String className : graph.keySet()) {
-            visited.clear();
-            recursionStack.clear();
-            if (isCyclic(className)) {
-                throw new RuntimeException("Referência cíclica detectada envolvendo a classe: " + className + ". Use '= null' para quebrar o ciclo.");
-            }
-        }
-    }
+		for (String neighbor : graph.getOrDefault(current, Collections.emptySet())) {
+			if (isCyclic(neighbor)) return true;
+		}
 
-    private boolean isCyclic(String current) {
-        if (recursionStack.contains(current)) return true;
-        if (visited.contains(current)) return false;
+		recursionStack.remove(current);
+		return false;
+	}
 
-        visited.add(current);
-        recursionStack.add(current);
+	public void addFieldDependency(String fromClass, VarDeclNode field) {
+		if (field.typeClass == null) return;
+		if (field.value instanceof NullNode) return; // Trata como ponteiro, não inline
 
-        for (String neighbor : graph.getOrDefault(current, Collections.emptySet())) {
-            if (isCyclic(neighbor)) return true;
-        }
+		graph.computeIfAbsent(fromClass, k -> new HashSet<>()).add(field.typeClass.name);
+	}
 
-        recursionStack.remove(current);
-        return false;
-    }
-} 
+	public void checkForCycles() {
+		for (String className : graph.keySet()) {
+			visited.clear();
+			recursionStack.clear();
+			if (isCyclic(className)) {
+				throw new RuntimeException("Referência cíclica detectada envolvendo a classe: " + className
+						+ ". Use '= null' para quebrar o ciclo.");
+			}
+		}
+	}
+}

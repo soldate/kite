@@ -1,7 +1,7 @@
 package compiler.ast.expr;
 
-import compiler.Token;
-import compiler.ast.core.Node;
+import compiler.*;
+import compiler.ast.core.*;
 
 // ex: a + b, a < b, a == b, etc
 public class BinOpNode extends Node {

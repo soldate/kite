@@ -1,77 +1,72 @@
 package compiler.util;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.util.Arrays;
-import java.util.Comparator;
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
 
 // Read Kite test files from the "tests" directory, compile them using the Kite compiler.
 // Then call 'gcc' to mount/compile the assembler code.
 public class TestRunner {
-    public static void main(String[] args) throws Exception {
-        File testDir = new File("tests");
-        File[] testFiles = testDir.listFiles((dir, name) -> name.endsWith(".kite"));
+	// Ex: test3_exit6.kite → returns 6
+	private static int extractExpectedExitCode(String name) {
+		try {
+			int start = name.indexOf("exit") + 4;
+			int end = name.lastIndexOf('.');
+			return Integer.parseInt(name.substring(start, end));
+		} catch (Exception e) {
+			return 0;
+		}
+	}
 
-        if (testFiles == null) {
-            System.err.println("No test files found.");
-            return;
-        }
+	private static int extractTestNumber(String filename) {
+		// Ex: test3_exit6.kite → returns 3
+		try {
+			int start = filename.indexOf("test") + 4;
+			int end = filename.indexOf("_", start);
+			if (start >= 4 && end > start) {
+				return Integer.parseInt(filename.substring(start, end));
+			}
+		} catch (Exception e) {
+		}
+		return Integer.MAX_VALUE;
+	}
 
-        Arrays.sort(testFiles, Comparator.comparingInt(f -> extractTestNumber(f.getName())));
+	public static void main(String[] args) throws Exception {
+		File testDir = new File("tests");
+		File[] testFiles = testDir.listFiles((dir, name) -> name.endsWith(".kite"));
 
-        for (File file : testFiles) {
-            String code = new String(Files.readAllBytes(file.toPath()));
-            String name = file.getName();
-            int expected = extractExpectedExitCode(name);
+		if (testFiles == null) {
+			System.err.println("No test files found.");
+			return;
+		}
 
-            System.out.printf("Running %s... ", name);
+		Arrays.sort(testFiles, Comparator.comparingInt(f -> extractTestNumber(f.getName())));
 
-            Process compile = new ProcessBuilder("java", "-cp", "bin", "compiler.Main", code)
-                    .redirectOutput(new File("out.s"))
-                    .redirectError(ProcessBuilder.Redirect.INHERIT)
-                    .start();
-            compile.waitFor();
+		for (File file : testFiles) {
+			String code = new String(Files.readAllBytes(file.toPath()));
+			String name = file.getName();
+			int expected = extractExpectedExitCode(name);
 
-            Process gcc = new ProcessBuilder("gcc", "-o", "out", "out.s")
-                    .redirectError(ProcessBuilder.Redirect.INHERIT)
-                    .start();
-            gcc.waitFor();
+			System.out.printf("Running %s... ", name);
 
-            Process run = new ProcessBuilder("./out")
-                    .start();
-            run.waitFor();
-            int exit = run.exitValue();
+			Process compile = new ProcessBuilder("java", "-cp", "bin", "compiler.Main", code)
+					.redirectOutput(new File("out.s")).redirectError(ProcessBuilder.Redirect.INHERIT).start();
+			compile.waitFor();
 
-            if (exit == expected) {
-                System.out.println("✅ Pass (exit code " + exit + ")");
-            } else {
-                System.out.println("❌ Error (expected " + expected + ", exit " + exit + ")");
-            }
-        }
-    }
+			Process gcc = new ProcessBuilder("gcc", "-o", "out", "out.s").redirectError(ProcessBuilder.Redirect.INHERIT)
+					.start();
+			gcc.waitFor();
 
-    // Ex: test3_exit6.kite → returns 6
-    private static int extractExpectedExitCode(String name) {
-        try {
-            int start = name.indexOf("exit") + 4;
-            int end = name.lastIndexOf('.');
-            return Integer.parseInt(name.substring(start, end));
-        } catch (Exception e) {
-            return 0;
-        }
-    }
+			Process run = new ProcessBuilder("./out").start();
+			run.waitFor();
+			int exit = run.exitValue();
 
-    private static int extractTestNumber(String filename) {
-        // Ex: test3_exit6.kite → returns 3
-        try {
-            int start = filename.indexOf("test") + 4;
-            int end = filename.indexOf("_", start);
-            if (start >= 4 && end > start) {
-                return Integer.parseInt(filename.substring(start, end));
-            }
-        } catch (Exception e) {
-        }
-        return Integer.MAX_VALUE;
-    }
-    
+			if (exit == expected) {
+				System.out.println("✅ Pass (exit code " + exit + ")");
+			} else {
+				System.out.println("❌ Error (expected " + expected + ", exit " + exit + ")");
+			}
+		}
+	}
+
 }
