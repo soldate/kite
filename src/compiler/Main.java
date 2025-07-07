@@ -39,42 +39,30 @@ public class Main {
 			CodeGen codegen = new CodeGen(out);
 			codegen.gen(ast);
 			out.close();
-
+			
 			String os = System.getProperty("os.name").toLowerCase();
-			if (os.contains("win")) {
-				// Compile the generated assembly code using tcc
-				Process gcc = new ProcessBuilder("tcc.exe", "-o", "out.exe", "-c", "out.s").inheritIO().start();
-				gcc.waitFor();
+			String execFile = "./out";
+			if (os.contains("win")) execFile += ".exe";
+			
 
-				// ./out; echo "Exit code: $?"
-				Process run = new ProcessBuilder(".\\out.exe").redirectErrorStream(true).start();
-				BufferedReader reader = new BufferedReader(new InputStreamReader(run.getInputStream()));
-				String line;
-				while ((line = reader.readLine()) != null) {
-					System.out.println(line);
-				}
-				int result = run.waitFor();
-				System.err.println("Exit code: " + (byte) result);
+			// Compile the generated assembly code using gcc
+			// gcc -no-pie -g -o out out.s
+			Process gcc = new ProcessBuilder("gcc", "-no-pie", "-g", "-o", execFile, "out.s").inheritIO().start();
+			gcc.waitFor();
 
-			} else if (os.contains("nux") || os.contains("nix")) {
-				// Compile the generated assembly code using gcc
-				// gcc -no-pie -g -o out out.s
-				Process gcc = new ProcessBuilder("gcc", "-o", "-g", "out", "out.s").inheritIO().start();
-				gcc.waitFor();
-
-				// ./out; echo "Exit code: $?"
-				Process run = new ProcessBuilder("./out").redirectErrorStream(true).start();
-				BufferedReader reader = new BufferedReader(new InputStreamReader(run.getInputStream()));
-				String line;
-				while ((line = reader.readLine()) != null) {
-					System.out.println(line);
-				}
-				int result = run.waitFor();
-				System.err.println("Exit code: " + (byte) result);
+			// ./out; echo "Exit code: $?"
+			Process run = new ProcessBuilder(execFile).redirectErrorStream(true).start();
+			BufferedReader reader = new BufferedReader(new InputStreamReader(run.getInputStream()));
+			String line;
+			while ((line = reader.readLine()) != null) {
+				System.out.println(line);
 			}
+			int result = run.waitFor();
+			System.err.println("Exit code: " + (byte) result);
 
 		} catch (Exception e) {
-			Util.debugPrintTokens(Parser.current, 5, e);
+			if (Parser.current != null)	Util.debugPrintTokens(Parser.current, 5, e);
+			else e.printStackTrace();
 		}
 	}
 }
