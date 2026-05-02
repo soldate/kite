@@ -4,12 +4,15 @@
         {
             "label": "build kitec",
             "type": "shell",
-            "command": "${workspaceFolder}/build.sh",
+            "command": "mvn",
+            "args": [
+                "compile"
+            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "problemMatcher": "$javac"
+            "problemMatcher": "$maven"
         }
     ]
 }

@@ -7,7 +7,7 @@
             "request": "launch",
             "mainClass": "kite.Main",
             "classPaths": [
-                "${workspaceFolder}/build/classes"
+                "${workspaceFolder}/target/classes"
             ],
             "args": "${workspaceFolder}/examples/hello.kite",
             "cwd": "${workspaceFolder}",
@@ -19,7 +19,7 @@
             "request": "launch",
             "mainClass": "kite.Main",
             "classPaths": [
-                "${workspaceFolder}/build/classes"
+                "${workspaceFolder}/target/classes"
             ],
             "args": "${workspaceFolder}/examples/node.kite",
             "cwd": "${workspaceFolder}",
