@@ -323,3 +323,113 @@ type list {
 ## One-line summary
 
 > Kite is a pretty C: clean syntax, Java-like references, C-like control, no GC, explicit lifetime.
+
+---
+
+## Current compiler work
+
+Kite currently has an early compiler/transpiler named `kitec`.
+
+For now, `kitec` is written in Java and transpiles Kite source code to C. C is the first backend because it lets us validate the language quickly while still staying close to Kite's memory and control model.
+
+Current implementation:
+
+- Java 17 project managed with Maven
+- hand-written lexer
+- hand-written recursive-descent parser
+- AST model using Java records and sealed interfaces
+- C code generator
+- VS Code debug configuration
+- local VS Code syntax highlighting extension for `.kite`
+
+Supported language subset:
+
+- `type`
+- fields
+- methods
+- `int`, `string`, `void`
+- local variable declarations
+- assignment
+- arithmetic and comparison expressions
+- function-style calls
+- `console.write(...)`
+- `return`
+- `if` / `else`
+- `while`
+- implicit `self` access for fields inside methods
+
+Examples live in `examples/`:
+
+```text
+examples/hello.kite
+examples/node.kite
+examples/control.kite
+```
+
+Build the compiler:
+
+```bash
+mvn compile
+```
+
+or:
+
+```bash
+./build.sh
+```
+
+Transpile a Kite file to C:
+
+```bash
+java -cp target/classes kite.Main examples/hello.kite > build/hello.c
+```
+
+Compile and run the generated C:
+
+```bash
+gcc build/hello.c -o build/hello
+./build/hello
+```
+
+### VS Code
+
+The repository includes VS Code configuration in `.vscode/`.
+
+Run and Debug configurations:
+
+- `Debug kitec: hello.kite`
+- `Debug kitec: node.kite`
+
+These run `mvn compile` first, then launch `kite.Main` with the selected example file. Breakpoints work in the Java compiler code.
+
+### Syntax highlighting
+
+Kite has a small local VS Code extension in:
+
+```text
+tools/vscode-kite/
+```
+
+It registers `.kite` as the `kite` language and provides TextMate syntax highlighting for Kite-specific keywords such as `type`, `pointer`, `copy`, `delete`, `foreach`, primitive types, strings, comments, and numbers.
+
+Install or reinstall it with:
+
+```bash
+tools/vscode-kite/install.sh
+```
+
+If VS Code does not refresh the highlighting immediately, run `Developer: Reload Window`.
+
+### Dependencies
+
+Required:
+
+- Java 17
+- Maven
+- GCC or Clang to compile generated C
+
+Recommended for VS Code:
+
+- Extension Pack for Java
+- C/C++ extension
+- the local Kite syntax extension from `tools/vscode-kite`
