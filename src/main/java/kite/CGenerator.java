@@ -1,0 +1,139 @@
+package kite;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import kite.Ast.Assign;
+import kite.Ast.Binary;
+import kite.Ast.Call;
+import kite.Ast.Expr;
+import kite.Ast.ExprStmt;
+import kite.Ast.FieldDecl;
+import kite.Ast.Get;
+import kite.Ast.Literal;
+import kite.Ast.Member;
+import kite.Ast.MethodDecl;
+import kite.Ast.Program;
+import kite.Ast.ReturnStmt;
+import kite.Ast.Stmt;
+import kite.Ast.TypeDecl;
+import kite.Ast.VarDecl;
+import kite.Ast.Variable;
+
+final class CGenerator {
+    private final StringBuilder out = new StringBuilder();
+    private String currentType;
+
+    String generate(Program program) {
+        out.append("#include <stdint.h>\n");
+        out.append("#include <stdio.h>\n\n");
+        out.append("static void console_write(const char* text) { printf(\"%s\", text); }\n\n");
+
+        for (TypeDecl type : program.types()) {
+            emitStruct(type);
+        }
+
+        for (TypeDecl type : program.types()) {
+            currentType = type.name();
+            for (Member member : type.members()) {
+                if (member instanceof MethodDecl method) {
+                    emitMethod(type, method);
+                }
+            }
+            currentType = null;
+        }
+
+        return out.toString();
+    }
+
+    private void emitStruct(TypeDecl type) {
+        out.append("typedef struct ").append(cStructName(type.name())).append(" {\n");
+        for (Member member : type.members()) {
+            if (member instanceof FieldDecl field) {
+                out.append("    ").append(cType(field.type())).append(" ").append(field.name()).append(";\n");
+            }
+        }
+        out.append("} ").append(cStructName(type.name())).append(";\n\n");
+    }
+
+    private void emitMethod(TypeDecl type, MethodDecl method) {
+        boolean isEntrypoint = type.name().equals("main") && method.name().equals("main") && method.params().isEmpty();
+        if (isEntrypoint) {
+            out.append("int main(void)");
+        } else {
+            out.append(cType(method.returnType())).append(" ");
+            out.append(type.name()).append("_").append(method.name()).append("(");
+            List<String> params = method.params().stream()
+                    .map(param -> cType(param.type()) + " " + param.name())
+                    .collect(Collectors.toList());
+            out.append(String.join(", ", params));
+            out.append(")");
+        }
+
+        out.append(" {\n");
+        for (Stmt stmt : method.body()) {
+            emitStmt(stmt);
+        }
+        if (isEntrypoint) {
+            out.append("    return 0;\n");
+        }
+        out.append("}\n\n");
+    }
+
+    private void emitStmt(Stmt stmt) {
+        if (stmt instanceof VarDecl varDecl) {
+            out.append("    ").append(cType(varDecl.type())).append(" ").append(varDecl.name());
+            if (varDecl.initializer() != null) {
+                out.append(" = ").append(expr(varDecl.initializer()));
+            }
+            out.append(";\n");
+        } else if (stmt instanceof ExprStmt exprStmt) {
+            out.append("    ").append(expr(exprStmt.expr())).append(";\n");
+        } else if (stmt instanceof ReturnStmt returnStmt) {
+            out.append("    return");
+            if (returnStmt.value() != null) {
+                out.append(" ").append(expr(returnStmt.value()));
+            }
+            out.append(";\n");
+        }
+    }
+
+    private String expr(Expr expr) {
+        if (expr instanceof Literal literal) {
+            return literal.value();
+        }
+        if (expr instanceof Variable variable) {
+            return variable.name();
+        }
+        if (expr instanceof Get get) {
+            if (get.object() instanceof Variable variable && variable.name().equals("console") && get.name().equals("write")) {
+                return "console_write";
+            }
+            return expr(get.object()) + "." + get.name();
+        }
+        if (expr instanceof Call call) {
+            String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
+            return expr(call.callee()) + "(" + args + ")";
+        }
+        if (expr instanceof Assign assign) {
+            return expr(assign.target()) + " = " + expr(assign.value());
+        }
+        if (expr instanceof Binary binary) {
+            return expr(binary.left()) + " " + binary.operator() + " " + expr(binary.right());
+        }
+        throw new IllegalStateException("Unknown expression: " + expr);
+    }
+
+    private String cType(String kiteType) {
+        return switch (kiteType) {
+            case "void" -> "void";
+            case "int" -> "int32_t";
+            case "string" -> "const char*";
+            default -> cStructName(kiteType);
+        };
+    }
+
+    private String cStructName(String kiteType) {
+        return "kite_" + kiteType;
+    }
+}

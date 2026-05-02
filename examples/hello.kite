@@ -1,0 +1,5 @@
+type main {
+    void main() {
+        console.write("hello");
+    }
+}

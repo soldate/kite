@@ -30,3 +30,4 @@ replay_pid*
 org.eclipse*
 out.s
 out
+build/

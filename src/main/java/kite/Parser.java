@@ -1,0 +1,261 @@
+package kite;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import kite.Ast.Assign;
+import kite.Ast.Binary;
+import kite.Ast.Call;
+import kite.Ast.Expr;
+import kite.Ast.ExprStmt;
+import kite.Ast.FieldDecl;
+import kite.Ast.Get;
+import kite.Ast.Literal;
+import kite.Ast.Member;
+import kite.Ast.MethodDecl;
+import kite.Ast.Param;
+import kite.Ast.Program;
+import kite.Ast.ReturnStmt;
+import kite.Ast.Stmt;
+import kite.Ast.TypeDecl;
+import kite.Ast.VarDecl;
+import kite.Ast.Variable;
+
+final class Parser {
+    private final List<Token> tokens;
+    private int current;
+
+    Parser(List<Token> tokens) {
+        this.tokens = tokens;
+    }
+
+    Program parse() {
+        List<TypeDecl> types = new ArrayList<>();
+        while (!isAtEnd()) {
+            types.add(typeDecl());
+        }
+        return new Program(types);
+    }
+
+    private TypeDecl typeDecl() {
+        consume(TokenType.TYPE, "Expected 'type'");
+        String name = consume(TokenType.IDENTIFIER, "Expected type name").lexeme();
+        consume(TokenType.LEFT_BRACE, "Expected '{' after type name");
+
+        List<Member> members = new ArrayList<>();
+        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+            String memberType = parseType();
+            String memberName = consume(TokenType.IDENTIFIER, "Expected member name").lexeme();
+            if (match(TokenType.LEFT_PAREN)) {
+                members.add(methodDecl(memberType, memberName));
+            } else {
+                consume(TokenType.SEMICOLON, "Expected ';' after field");
+                members.add(new FieldDecl(memberType, memberName));
+            }
+        }
+
+        consume(TokenType.RIGHT_BRACE, "Expected '}' after type body");
+        return new TypeDecl(name, members);
+    }
+
+    private MethodDecl methodDecl(String returnType, String name) {
+        List<Param> params = new ArrayList<>();
+        if (!check(TokenType.RIGHT_PAREN)) {
+            do {
+                String type = parseType();
+                String paramName = consume(TokenType.IDENTIFIER, "Expected parameter name").lexeme();
+                params.add(new Param(type, paramName));
+            } while (match(TokenType.COMMA));
+        }
+        consume(TokenType.RIGHT_PAREN, "Expected ')' after parameters");
+        consume(TokenType.LEFT_BRACE, "Expected '{' before method body");
+
+        List<Stmt> body = new ArrayList<>();
+        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+            body.add(statement());
+        }
+        consume(TokenType.RIGHT_BRACE, "Expected '}' after method body");
+        return new MethodDecl(returnType, name, params, body);
+    }
+
+    private Stmt statement() {
+        if (match(TokenType.RETURN)) {
+            Expr value = null;
+            if (!check(TokenType.SEMICOLON)) {
+                value = expression();
+            }
+            consume(TokenType.SEMICOLON, "Expected ';' after return");
+            return new ReturnStmt(value);
+        }
+
+        if (isTypeStart(peek().type()) && checkNext(TokenType.IDENTIFIER)) {
+            String type = parseType();
+            String name = consume(TokenType.IDENTIFIER, "Expected variable name").lexeme();
+            Expr initializer = null;
+            if (match(TokenType.EQUAL)) {
+                initializer = expression();
+            }
+            consume(TokenType.SEMICOLON, "Expected ';' after variable declaration");
+            return new VarDecl(type, name, initializer);
+        }
+
+        Expr expr = expression();
+        consume(TokenType.SEMICOLON, "Expected ';' after expression");
+        return new ExprStmt(expr);
+    }
+
+    private Expr expression() {
+        return assignment();
+    }
+
+    private Expr assignment() {
+        Expr expr = equality();
+        if (match(TokenType.EQUAL)) {
+            Expr value = assignment();
+            return new Assign(expr, value);
+        }
+        return expr;
+    }
+
+    private Expr equality() {
+        Expr expr = comparison();
+        while (match(TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL)) {
+            String operator = previous().lexeme();
+            Expr right = comparison();
+            expr = new Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    private Expr comparison() {
+        Expr expr = term();
+        while (match(TokenType.LESS, TokenType.LESS_EQUAL, TokenType.GREATER, TokenType.GREATER_EQUAL)) {
+            String operator = previous().lexeme();
+            Expr right = term();
+            expr = new Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    private Expr term() {
+        Expr expr = factor();
+        while (match(TokenType.PLUS, TokenType.MINUS)) {
+            String operator = previous().lexeme();
+            Expr right = factor();
+            expr = new Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    private Expr factor() {
+        Expr expr = call();
+        while (match(TokenType.STAR, TokenType.SLASH)) {
+            String operator = previous().lexeme();
+            Expr right = call();
+            expr = new Binary(expr, operator, right);
+        }
+        return expr;
+    }
+
+    private Expr call() {
+        Expr expr = primary();
+        while (true) {
+            if (match(TokenType.LEFT_PAREN)) {
+                List<Expr> args = new ArrayList<>();
+                if (!check(TokenType.RIGHT_PAREN)) {
+                    do {
+                        args.add(expression());
+                    } while (match(TokenType.COMMA));
+                }
+                consume(TokenType.RIGHT_PAREN, "Expected ')' after arguments");
+                expr = new Call(expr, args);
+            } else if (match(TokenType.DOT)) {
+                String name = consume(TokenType.IDENTIFIER, "Expected property name after '.'").lexeme();
+                expr = new Get(expr, name);
+            } else {
+                break;
+            }
+        }
+        return expr;
+    }
+
+    private Expr primary() {
+        if (match(TokenType.NUMBER, TokenType.STRING)) {
+            return new Literal(previous().lexeme());
+        }
+        if (match(TokenType.IDENTIFIER)) {
+            return new Variable(previous().lexeme());
+        }
+        if (match(TokenType.LEFT_PAREN)) {
+            Expr expr = expression();
+            consume(TokenType.RIGHT_PAREN, "Expected ')' after expression");
+            return expr;
+        }
+        throw error(peek(), "Expected expression");
+    }
+
+    private String parseType() {
+        if (match(TokenType.VOID, TokenType.INT, TokenType.STRING_TYPE, TokenType.IDENTIFIER)) {
+            return previous().lexeme();
+        }
+        throw error(peek(), "Expected type");
+    }
+
+    private boolean isTypeStart(TokenType type) {
+        return type == TokenType.VOID || type == TokenType.INT || type == TokenType.STRING_TYPE || type == TokenType.IDENTIFIER;
+    }
+
+    private boolean match(TokenType... types) {
+        for (TokenType type : types) {
+            if (check(type)) {
+                advance();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Token consume(TokenType type, String message) {
+        if (check(type)) {
+            return advance();
+        }
+        throw error(peek(), message);
+    }
+
+    private boolean check(TokenType type) {
+        if (isAtEnd()) {
+            return false;
+        }
+        return peek().type() == type;
+    }
+
+    private boolean checkNext(TokenType type) {
+        if (current + 1 >= tokens.size()) {
+            return false;
+        }
+        return tokens.get(current + 1).type() == type;
+    }
+
+    private Token advance() {
+        if (!isAtEnd()) {
+            current++;
+        }
+        return previous();
+    }
+
+    private boolean isAtEnd() {
+        return peek().type() == TokenType.EOF;
+    }
+
+    private Token peek() {
+        return tokens.get(current);
+    }
+
+    private Token previous() {
+        return tokens.get(current - 1);
+    }
+
+    private KiteException error(Token token, String message) {
+        return new KiteException("Line " + token.line() + ", column " + token.column() + ": " + message);
+    }
+}
