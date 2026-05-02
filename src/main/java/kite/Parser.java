@@ -240,7 +240,7 @@ final class Parser {
     }
 
     private Expr primary() {
-        if (match(TokenType.NUMBER, TokenType.STRING)) {
+        if (match(TokenType.NUMBER, TokenType.STRING, TokenType.TRUE, TokenType.FALSE)) {
             return new Literal(previous().lexeme());
         }
         if (match(TokenType.IDENTIFIER)) {
@@ -255,14 +255,19 @@ final class Parser {
     }
 
     private String parseType() {
-        if (match(TokenType.VOID, TokenType.INT, TokenType.STRING_TYPE, TokenType.IDENTIFIER)) {
+        if (match(TokenType.VOID, TokenType.INT, TokenType.UINT, TokenType.LONG, TokenType.ULONG,
+                TokenType.FLOAT, TokenType.DOUBLE, TokenType.BYTE, TokenType.CHAR, TokenType.BOOL,
+                TokenType.STRING_TYPE, TokenType.IDENTIFIER)) {
             return previous().lexeme();
         }
         throw error(peek(), "Expected type");
     }
 
     private boolean isTypeStart(TokenType type) {
-        return type == TokenType.VOID || type == TokenType.INT || type == TokenType.STRING_TYPE || type == TokenType.IDENTIFIER;
+        return type == TokenType.VOID || type == TokenType.INT || type == TokenType.UINT || type == TokenType.LONG
+                || type == TokenType.ULONG || type == TokenType.FLOAT || type == TokenType.DOUBLE
+                || type == TokenType.BYTE || type == TokenType.CHAR || type == TokenType.BOOL
+                || type == TokenType.STRING_TYPE || type == TokenType.IDENTIFIER;
     }
 
     private boolean match(TokenType... types) {

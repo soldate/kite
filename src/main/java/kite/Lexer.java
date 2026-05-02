@@ -12,7 +12,17 @@ final class Lexer {
         KEYWORDS.put("type", TokenType.TYPE);
         KEYWORDS.put("void", TokenType.VOID);
         KEYWORDS.put("int", TokenType.INT);
+        KEYWORDS.put("uint", TokenType.UINT);
+        KEYWORDS.put("long", TokenType.LONG);
+        KEYWORDS.put("ulong", TokenType.ULONG);
+        KEYWORDS.put("float", TokenType.FLOAT);
+        KEYWORDS.put("double", TokenType.DOUBLE);
+        KEYWORDS.put("byte", TokenType.BYTE);
+        KEYWORDS.put("char", TokenType.CHAR);
+        KEYWORDS.put("bool", TokenType.BOOL);
         KEYWORDS.put("string", TokenType.STRING_TYPE);
+        KEYWORDS.put("true", TokenType.TRUE);
+        KEYWORDS.put("false", TokenType.FALSE);
         KEYWORDS.put("return", TokenType.RETURN);
         KEYWORDS.put("if", TokenType.IF);
         KEYWORDS.put("else", TokenType.ELSE);

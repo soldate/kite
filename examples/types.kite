@@ -1,0 +1,15 @@
+type main {
+    void main() {
+        bool enabled = true;
+        uint count = 3;
+        long total = 10;
+        byte value = 1;
+
+        if (enabled) {
+            console.write("types");
+        }
+
+        count = count + value;
+        total = total + count;
+    }
+}

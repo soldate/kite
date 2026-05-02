@@ -347,7 +347,8 @@ Supported language subset:
 - `type`
 - fields
 - methods
-- `int`, `string`, `void`
+- primitive types: `int`, `uint`, `long`, `ulong`, `float`, `double`, `byte`, `char`, `bool`, `string`, `void`
+- boolean literals: `true`, `false`
 - local variable declarations
 - assignment
 - arithmetic and comparison expressions
@@ -366,6 +367,7 @@ examples/hello.kite
 examples/node.kite
 examples/control.kite
 examples/for.kite
+examples/types.kite
 ```
 
 Build the compiler:

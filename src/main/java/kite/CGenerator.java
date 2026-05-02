@@ -37,6 +37,7 @@ final class CGenerator {
 
     String generate(Program program) {
         out.append("#include <stdint.h>\n");
+        out.append("#include <stdbool.h>\n");
         out.append("#include <stdio.h>\n\n");
         out.append("static void console_write(const char* text) { printf(\"%s\", text); }\n\n");
 
@@ -228,6 +229,14 @@ final class CGenerator {
         return switch (kiteType) {
             case "void" -> "void";
             case "int" -> "int32_t";
+            case "uint" -> "uint32_t";
+            case "long" -> "int64_t";
+            case "ulong" -> "uint64_t";
+            case "float" -> "float";
+            case "double" -> "double";
+            case "byte" -> "uint8_t";
+            case "char" -> "char";
+            case "bool" -> "bool";
             case "string" -> "const char*";
             default -> cStructName(kiteType);
         };
