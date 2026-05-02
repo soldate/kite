@@ -1,6 +1,11 @@
 package kite;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import kite.Ast.Assign;
@@ -22,28 +27,44 @@ import kite.Ast.Variable;
 
 final class CGenerator {
     private final StringBuilder out = new StringBuilder();
-    private String currentType;
+    private final Map<String, Set<String>> fieldsByType = new HashMap<>();
+    private Set<String> currentFields = Set.of();
+    private Set<String> locals = Set.of();
 
     String generate(Program program) {
         out.append("#include <stdint.h>\n");
         out.append("#include <stdio.h>\n\n");
         out.append("static void console_write(const char* text) { printf(\"%s\", text); }\n\n");
 
+        indexFields(program);
+
         for (TypeDecl type : program.types()) {
             emitStruct(type);
         }
 
         for (TypeDecl type : program.types()) {
-            currentType = type.name();
+            currentFields = fieldsByType.getOrDefault(type.name(), Set.of());
             for (Member member : type.members()) {
                 if (member instanceof MethodDecl method) {
                     emitMethod(type, method);
                 }
             }
-            currentType = null;
+            currentFields = Set.of();
         }
 
         return out.toString();
+    }
+
+    private void indexFields(Program program) {
+        for (TypeDecl type : program.types()) {
+            Set<String> fields = new HashSet<>();
+            for (Member member : type.members()) {
+                if (member instanceof FieldDecl field) {
+                    fields.add(field.name());
+                }
+            }
+            fieldsByType.put(type.name(), fields);
+        }
     }
 
     private void emitStruct(TypeDecl type) {
@@ -58,14 +79,19 @@ final class CGenerator {
 
     private void emitMethod(TypeDecl type, MethodDecl method) {
         boolean isEntrypoint = type.name().equals("main") && method.name().equals("main") && method.params().isEmpty();
+        locals = new HashSet<>();
+        method.params().forEach(param -> locals.add(param.name()));
+
         if (isEntrypoint) {
             out.append("int main(void)");
         } else {
             out.append(cType(method.returnType())).append(" ");
             out.append(type.name()).append("_").append(method.name()).append("(");
-            List<String> params = method.params().stream()
+            List<String> params = new ArrayList<>();
+            params.add(cStructName(type.name()) + "* self");
+            params.addAll(method.params().stream()
                     .map(param -> cType(param.type()) + " " + param.name())
-                    .collect(Collectors.toList());
+                    .toList());
             out.append(String.join(", ", params));
             out.append(")");
         }
@@ -78,10 +104,12 @@ final class CGenerator {
             out.append("    return 0;\n");
         }
         out.append("}\n\n");
+        locals = Set.of();
     }
 
     private void emitStmt(Stmt stmt) {
         if (stmt instanceof VarDecl varDecl) {
+            locals.add(varDecl.name());
             out.append("    ").append(cType(varDecl.type())).append(" ").append(varDecl.name());
             if (varDecl.initializer() != null) {
                 out.append(" = ").append(expr(varDecl.initializer()));
@@ -103,6 +131,9 @@ final class CGenerator {
             return literal.value();
         }
         if (expr instanceof Variable variable) {
+            if (currentFields.contains(variable.name()) && !locals.contains(variable.name())) {
+                return "self->" + variable.name();
+            }
             return variable.name();
         }
         if (expr instanceof Get get) {

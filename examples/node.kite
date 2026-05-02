@@ -1,0 +1,7 @@
+type node {
+    int value;
+
+    void init(int v) {
+        value = v;
+    }
+}
