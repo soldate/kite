@@ -1,9 +1,0 @@
-class prog {
-    int dup(int x) { return x + x; }
-    int trip(int y) { return this.dup(y) + y; }    
-}
-
-int main() { 
-    prog p;
-    return p.trip(2); 
-}

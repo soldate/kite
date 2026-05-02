@@ -1,5 +1,0 @@
-package cia.core.test;
-
-int main() {
-	return 2;
-}
