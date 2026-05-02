@@ -1,5 +1,6 @@
 {
     "recommendations": [
+        "kite.kite-language",
         "vscjava.vscode-java-pack",
         "ms-vscode.cpptools"
     ]

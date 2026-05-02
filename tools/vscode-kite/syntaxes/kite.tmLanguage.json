@@ -1,0 +1,91 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Kite",
+    "scopeName": "source.kite",
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#types"
+        },
+        {
+            "include": "#numbers"
+        },
+        {
+            "include": "source.c"
+        }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.double-slash.kite",
+                    "match": "//.*$"
+                },
+                {
+                    "name": "comment.block.kite",
+                    "begin": "/\\*",
+                    "end": "\\*/"
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.kite",
+                    "begin": "\"",
+                    "end": "\"",
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.kite",
+                            "match": "\\\\."
+                        }
+                    ]
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.declaration.kite",
+                    "match": "\\b(type|packed|soa|using|import|extern)\\b"
+                },
+                {
+                    "name": "keyword.control.kite",
+                    "match": "\\b(if|else|while|for|foreach|in|return|throw)\\b"
+                },
+                {
+                    "name": "keyword.operator.kite",
+                    "match": "\\b(pointer|copy|delete|array)\\b"
+                },
+                {
+                    "name": "constant.language.kite",
+                    "match": "\\b(true|false)\\b"
+                }
+            ]
+        },
+        "types": {
+            "patterns": [
+                {
+                    "name": "storage.type.primitive.kite",
+                    "match": "\\b(void|int|uint|long|ulong|float|double|byte|char|bool|string)\\b"
+                }
+            ]
+        },
+        "numbers": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.kite",
+                    "match": "\\b[0-9]+(?:\\.[0-9]+)?\\b"
+                }
+            ]
+        }
+    }
+}

@@ -1,6 +1,6 @@
 {
     "files.associations": {
-        "*.kite": "c"
+        "*.kite": "kite"
     },
     "java.configuration.updateBuildConfiguration": "automatic"
 }
