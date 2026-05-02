@@ -14,6 +14,7 @@ import kite.Ast.Call;
 import kite.Ast.Expr;
 import kite.Ast.ExprStmt;
 import kite.Ast.FieldDecl;
+import kite.Ast.ForStmt;
 import kite.Ast.Get;
 import kite.Ast.IfStmt;
 import kite.Ast.Literal;
@@ -144,7 +145,37 @@ final class CGenerator {
             line("while (" + expr(whileStmt.condition()) + ") {");
             emitBlock(whileStmt.body());
             line("}");
+        } else if (stmt instanceof ForStmt forStmt) {
+            line("for (" + forInitializer(forStmt.initializer()) + "; " + optionalExpr(forStmt.condition()) + "; "
+                    + optionalExpr(forStmt.increment()) + ") {");
+            emitBlock(forStmt.body());
+            line("}");
         }
+    }
+
+    private String forInitializer(Stmt initializer) {
+        if (initializer == null) {
+            return "";
+        }
+        if (initializer instanceof VarDecl varDecl) {
+            locals.add(varDecl.name());
+            String text = cType(varDecl.type()) + " " + varDecl.name();
+            if (varDecl.initializer() != null) {
+                text += " = " + expr(varDecl.initializer());
+            }
+            return text;
+        }
+        if (initializer instanceof ExprStmt exprStmt) {
+            return expr(exprStmt.expr());
+        }
+        throw new IllegalStateException("Unsupported for initializer: " + initializer);
+    }
+
+    private String optionalExpr(Expr expr) {
+        if (expr == null) {
+            return "";
+        }
+        return expr(expr);
     }
 
     private void emitBlock(List<Stmt> body) {

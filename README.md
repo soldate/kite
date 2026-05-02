@@ -356,6 +356,7 @@ Supported language subset:
 - `return`
 - `if` / `else`
 - `while`
+- `for`
 - implicit `self` access for fields inside methods
 
 Examples live in `examples/`:
@@ -364,6 +365,7 @@ Examples live in `examples/`:
 examples/hello.kite
 examples/node.kite
 examples/control.kite
+examples/for.kite
 ```
 
 Build the compiler:

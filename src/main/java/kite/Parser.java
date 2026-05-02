@@ -9,6 +9,7 @@ import kite.Ast.Call;
 import kite.Ast.Expr;
 import kite.Ast.ExprStmt;
 import kite.Ast.FieldDecl;
+import kite.Ast.ForStmt;
 import kite.Ast.Get;
 import kite.Ast.IfStmt;
 import kite.Ast.Literal;
@@ -95,6 +96,35 @@ final class Parser {
             return new WhileStmt(condition, body);
         }
 
+        if (match(TokenType.FOR)) {
+            consume(TokenType.LEFT_PAREN, "Expected '(' after 'for'");
+            Stmt initializer = null;
+            if (match(TokenType.SEMICOLON)) {
+                initializer = null;
+            } else if (isTypeStart(peek().type()) && checkNext(TokenType.IDENTIFIER)) {
+                initializer = varDecl();
+            } else {
+                Expr expr = expression();
+                consume(TokenType.SEMICOLON, "Expected ';' after for initializer");
+                initializer = new ExprStmt(expr);
+            }
+
+            Expr condition = null;
+            if (!check(TokenType.SEMICOLON)) {
+                condition = expression();
+            }
+            consume(TokenType.SEMICOLON, "Expected ';' after for condition");
+
+            Expr increment = null;
+            if (!check(TokenType.RIGHT_PAREN)) {
+                increment = expression();
+            }
+            consume(TokenType.RIGHT_PAREN, "Expected ')' after for clauses");
+
+            List<Stmt> body = block("Expected '{' before for body", "Expected '}' after for body");
+            return new ForStmt(initializer, condition, increment, body);
+        }
+
         if (match(TokenType.RETURN)) {
             Expr value = null;
             if (!check(TokenType.SEMICOLON)) {
@@ -105,19 +135,23 @@ final class Parser {
         }
 
         if (isTypeStart(peek().type()) && checkNext(TokenType.IDENTIFIER)) {
-            String type = parseType();
-            String name = consume(TokenType.IDENTIFIER, "Expected variable name").lexeme();
-            Expr initializer = null;
-            if (match(TokenType.EQUAL)) {
-                initializer = expression();
-            }
-            consume(TokenType.SEMICOLON, "Expected ';' after variable declaration");
-            return new VarDecl(type, name, initializer);
+            return varDecl();
         }
 
         Expr expr = expression();
         consume(TokenType.SEMICOLON, "Expected ';' after expression");
         return new ExprStmt(expr);
+    }
+
+    private VarDecl varDecl() {
+        String type = parseType();
+        String name = consume(TokenType.IDENTIFIER, "Expected variable name").lexeme();
+        Expr initializer = null;
+        if (match(TokenType.EQUAL)) {
+            initializer = expression();
+        }
+        consume(TokenType.SEMICOLON, "Expected ';' after variable declaration");
+        return new VarDecl(type, name, initializer);
     }
 
     private List<Stmt> block(String openMessage, String closeMessage) {

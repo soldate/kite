@@ -21,7 +21,7 @@ final class Ast {
     record Param(String type, String name) {
     }
 
-    sealed interface Stmt permits VarDecl, ExprStmt, ReturnStmt, IfStmt, WhileStmt {
+    sealed interface Stmt permits VarDecl, ExprStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt {
     }
 
     record VarDecl(String type, String name, Expr initializer) implements Stmt {
@@ -37,6 +37,9 @@ final class Ast {
     }
 
     record WhileStmt(Expr condition, List<Stmt> body) implements Stmt {
+    }
+
+    record ForStmt(Stmt initializer, Expr condition, Expr increment, List<Stmt> body) implements Stmt {
     }
 
     sealed interface Expr permits Assign, Binary, Call, Get, Literal, Variable {
