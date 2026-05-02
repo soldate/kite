@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug kitec: hello.kite",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "kite.Main",
+            "classPaths": [
+                "${workspaceFolder}/build/classes"
+            ],
+            "args": "${workspaceFolder}/examples/hello.kite",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "build kitec"
+        },
+        {
+            "name": "Debug kitec: node.kite",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "kite.Main",
+            "classPaths": [
+                "${workspaceFolder}/build/classes"
+            ],
+            "args": "${workspaceFolder}/examples/node.kite",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "build kitec"
+        }
+    ]
+}
