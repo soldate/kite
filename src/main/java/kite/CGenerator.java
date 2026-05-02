@@ -15,6 +15,7 @@ import kite.Ast.Expr;
 import kite.Ast.ExprStmt;
 import kite.Ast.FieldDecl;
 import kite.Ast.Get;
+import kite.Ast.IfStmt;
 import kite.Ast.Literal;
 import kite.Ast.Member;
 import kite.Ast.MethodDecl;
@@ -24,12 +25,14 @@ import kite.Ast.Stmt;
 import kite.Ast.TypeDecl;
 import kite.Ast.VarDecl;
 import kite.Ast.Variable;
+import kite.Ast.WhileStmt;
 
 final class CGenerator {
     private final StringBuilder out = new StringBuilder();
     private final Map<String, Set<String>> fieldsByType = new HashMap<>();
     private Set<String> currentFields = Set.of();
     private Set<String> locals = Set.of();
+    private int indentLevel;
 
     String generate(Program program) {
         out.append("#include <stdint.h>\n");
@@ -97,12 +100,14 @@ final class CGenerator {
         }
 
         out.append(" {\n");
+        indentLevel++;
         for (Stmt stmt : method.body()) {
             emitStmt(stmt);
         }
         if (isEntrypoint) {
-            out.append("    return 0;\n");
+            line("return 0;");
         }
+        indentLevel--;
         out.append("}\n\n");
         locals = Set.of();
     }
@@ -110,20 +115,53 @@ final class CGenerator {
     private void emitStmt(Stmt stmt) {
         if (stmt instanceof VarDecl varDecl) {
             locals.add(varDecl.name());
-            out.append("    ").append(cType(varDecl.type())).append(" ").append(varDecl.name());
+            indent();
+            out.append(cType(varDecl.type())).append(" ").append(varDecl.name());
             if (varDecl.initializer() != null) {
                 out.append(" = ").append(expr(varDecl.initializer()));
             }
             out.append(";\n");
         } else if (stmt instanceof ExprStmt exprStmt) {
-            out.append("    ").append(expr(exprStmt.expr())).append(";\n");
+            line(expr(exprStmt.expr()) + ";");
         } else if (stmt instanceof ReturnStmt returnStmt) {
-            out.append("    return");
+            indent();
+            out.append("return");
             if (returnStmt.value() != null) {
                 out.append(" ").append(expr(returnStmt.value()));
             }
             out.append(";\n");
+        } else if (stmt instanceof IfStmt ifStmt) {
+            line("if (" + expr(ifStmt.condition()) + ") {");
+            emitBlock(ifStmt.thenBranch());
+            if (ifStmt.elseBranch().isEmpty()) {
+                line("}");
+            } else {
+                line("} else {");
+                emitBlock(ifStmt.elseBranch());
+                line("}");
+            }
+        } else if (stmt instanceof WhileStmt whileStmt) {
+            line("while (" + expr(whileStmt.condition()) + ") {");
+            emitBlock(whileStmt.body());
+            line("}");
         }
+    }
+
+    private void emitBlock(List<Stmt> body) {
+        indentLevel++;
+        for (Stmt stmt : body) {
+            emitStmt(stmt);
+        }
+        indentLevel--;
+    }
+
+    private void line(String text) {
+        indent();
+        out.append(text).append("\n");
+    }
+
+    private void indent() {
+        out.append("    ".repeat(indentLevel));
     }
 
     private String expr(Expr expr) {

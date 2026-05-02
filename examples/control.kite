@@ -1,0 +1,15 @@
+type main {
+    void main() {
+        int i = 0;
+
+        while (i < 3) {
+            if (i == 1) {
+                console.write("one");
+            } else {
+                console.write("tick");
+            }
+
+            i = i + 1;
+        }
+    }
+}

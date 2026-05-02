@@ -10,6 +10,7 @@ import kite.Ast.Expr;
 import kite.Ast.ExprStmt;
 import kite.Ast.FieldDecl;
 import kite.Ast.Get;
+import kite.Ast.IfStmt;
 import kite.Ast.Literal;
 import kite.Ast.Member;
 import kite.Ast.MethodDecl;
@@ -20,6 +21,7 @@ import kite.Ast.Stmt;
 import kite.Ast.TypeDecl;
 import kite.Ast.VarDecl;
 import kite.Ast.Variable;
+import kite.Ast.WhileStmt;
 
 final class Parser {
     private final List<Token> tokens;
@@ -68,17 +70,31 @@ final class Parser {
             } while (match(TokenType.COMMA));
         }
         consume(TokenType.RIGHT_PAREN, "Expected ')' after parameters");
-        consume(TokenType.LEFT_BRACE, "Expected '{' before method body");
-
-        List<Stmt> body = new ArrayList<>();
-        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
-            body.add(statement());
-        }
-        consume(TokenType.RIGHT_BRACE, "Expected '}' after method body");
+        List<Stmt> body = block("Expected '{' before method body", "Expected '}' after method body");
         return new MethodDecl(returnType, name, params, body);
     }
 
     private Stmt statement() {
+        if (match(TokenType.IF)) {
+            consume(TokenType.LEFT_PAREN, "Expected '(' after 'if'");
+            Expr condition = expression();
+            consume(TokenType.RIGHT_PAREN, "Expected ')' after if condition");
+            List<Stmt> thenBranch = block("Expected '{' before if body", "Expected '}' after if body");
+            List<Stmt> elseBranch = List.of();
+            if (match(TokenType.ELSE)) {
+                elseBranch = block("Expected '{' before else body", "Expected '}' after else body");
+            }
+            return new IfStmt(condition, thenBranch, elseBranch);
+        }
+
+        if (match(TokenType.WHILE)) {
+            consume(TokenType.LEFT_PAREN, "Expected '(' after 'while'");
+            Expr condition = expression();
+            consume(TokenType.RIGHT_PAREN, "Expected ')' after while condition");
+            List<Stmt> body = block("Expected '{' before while body", "Expected '}' after while body");
+            return new WhileStmt(condition, body);
+        }
+
         if (match(TokenType.RETURN)) {
             Expr value = null;
             if (!check(TokenType.SEMICOLON)) {
@@ -102,6 +118,16 @@ final class Parser {
         Expr expr = expression();
         consume(TokenType.SEMICOLON, "Expected ';' after expression");
         return new ExprStmt(expr);
+    }
+
+    private List<Stmt> block(String openMessage, String closeMessage) {
+        consume(TokenType.LEFT_BRACE, openMessage);
+        List<Stmt> body = new ArrayList<>();
+        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+            body.add(statement());
+        }
+        consume(TokenType.RIGHT_BRACE, closeMessage);
+        return body;
     }
 
     private Expr expression() {
