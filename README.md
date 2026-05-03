@@ -360,6 +360,7 @@ Supported language subset:
 - `for`
 - implicit `self` access for fields inside methods
 - object method calls for local variables, such as `n.init(10)`
+- local initialization syntax, such as `node n = node(10)`, lowered to `node n; n.init(10);`
 
 Examples live in `examples/`:
 

@@ -124,14 +124,7 @@ final class CGenerator {
 
     private void emitStmt(Stmt stmt) {
         if (stmt instanceof VarDecl varDecl) {
-            locals.add(varDecl.name());
-            localTypes.put(varDecl.name(), varDecl.type());
-            indent();
-            out.append(cType(varDecl.type())).append(" ").append(varDecl.name());
-            if (varDecl.initializer() != null) {
-                out.append(" = ").append(expr(varDecl.initializer()));
-            }
-            out.append(";\n");
+            emitVarDecl(varDecl);
         } else if (stmt instanceof ExprStmt exprStmt) {
             line(expr(exprStmt.expr()) + ";");
         } else if (stmt instanceof ReturnStmt returnStmt) {
@@ -161,6 +154,33 @@ final class CGenerator {
             emitBlock(forStmt.body());
             line("}");
         }
+    }
+
+    private void emitVarDecl(VarDecl varDecl) {
+        locals.add(varDecl.name());
+        localTypes.put(varDecl.name(), varDecl.type());
+
+        if (isInitializerCall(varDecl)) {
+            line(cType(varDecl.type()) + " " + varDecl.name() + ";");
+            Call initCall = (Call) varDecl.initializer();
+            String args = initCall.args().stream().map(this::expr).collect(Collectors.joining(", "));
+            String allArgs = args.isEmpty() ? "&" + varDecl.name() : "&" + varDecl.name() + ", " + args;
+            line(varDecl.type() + "_init(" + allArgs + ");");
+        } else {
+            indent();
+            out.append(cType(varDecl.type())).append(" ").append(varDecl.name());
+            if (varDecl.initializer() != null) {
+                out.append(" = ").append(expr(varDecl.initializer()));
+            }
+            out.append(";\n");
+        }
+    }
+
+    private boolean isInitializerCall(VarDecl varDecl) {
+        if (!typeNames.contains(varDecl.type()) || !(varDecl.initializer() instanceof Call call)) {
+            return false;
+        }
+        return call.callee() instanceof Variable variable && variable.name().equals(varDecl.type());
     }
 
     private String forInitializer(Stmt initializer) {

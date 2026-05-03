@@ -1,6 +1,7 @@
 package kite;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -77,6 +78,7 @@ final class CompilerTest {
 
         assertTrue(c.contains("kite_node n;"));
         assertTrue(c.contains("node_init(&n, 10);"));
+        assertFalse(c.contains("= node(10)"));
     }
 
     private String compileExample(String fileName) throws IOException {

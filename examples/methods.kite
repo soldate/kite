@@ -8,8 +8,6 @@ type node {
 
 type main {
     void main() {
-        node n;
-
-        n.init(10);
+        node n = node(10);
     }
 }
