@@ -138,6 +138,18 @@ node n;
 - stack if it does not escape
 - heap if it escapes → `on_heap`
 
+Force heap allocation:
+
+```c
+heap node n;
+```
+
+- `n` is still a non-null object reference
+- allocation is explicit in source
+- lifetime is still manual
+- must be released with `delete n;`
+- different from `pointer node`, which is nullable/manual pointer syntax
+
 ```c
 delete obj;
 ```
