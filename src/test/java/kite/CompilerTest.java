@@ -25,6 +25,8 @@ final class CompilerTest {
 
                 static void console_write(const char* text) { printf("%s", text); }
 
+                static void* kite_on_heap(size_t size) { return malloc(size); }
+
                 typedef struct kite_main {
                 } kite_main;
 
@@ -118,7 +120,8 @@ final class CompilerTest {
     void compilesExplicitHeapObjects() throws IOException {
         String c = compileExample("heap.kite");
 
-        assertTrue(c.contains("kite_node* n = malloc(sizeof(kite_node));"));
+        assertTrue(c.contains("static void* kite_on_heap(size_t size) { return malloc(size); }"));
+        assertTrue(c.contains("kite_node* n = kite_on_heap(sizeof(kite_node));"));
         assertTrue(c.contains("node_init(n, 10);"));
         assertTrue(c.contains("n->value = 20;"));
         assertTrue(c.contains("free(n);"));

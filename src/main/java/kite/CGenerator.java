@@ -48,6 +48,7 @@ final class CGenerator {
         out.append("#include <stdio.h>\n");
         out.append("#include <stdlib.h>\n\n");
         out.append("static void console_write(const char* text) { printf(\"%s\", text); }\n\n");
+        out.append("static void* kite_on_heap(size_t size) { return malloc(size); }\n\n");
 
         indexFields(program);
         collectArrayTypes(program);
@@ -277,7 +278,7 @@ final class CGenerator {
             emitArrayVarDecl(varDecl);
         } else if (isKiteObject(varDecl.type())) {
             if (varDecl.heap()) {
-                line(cType(varDecl.type()) + " " + varDecl.name() + " = malloc(sizeof(" + cStructName(varDecl.type()) + "));");
+                line(cType(varDecl.type()) + " " + varDecl.name() + " = kite_on_heap(sizeof(" + cStructName(varDecl.type()) + "));");
                 if (isInitializerCall(varDecl)) {
                     Call initCall = (Call) varDecl.initializer();
                     String args = initCall.args().stream().map(this::expr).collect(Collectors.joining(", "));

@@ -164,7 +164,9 @@ delete obj;
 ```c
 type main {
     pointer on_heap(int size) {
-        return allocator.alloc(size);
+        pointer p = allocator.alloc(size);
+        heap_objects.add(p);
+        return p;
     }
 
     void on_error(string e) {
@@ -172,6 +174,22 @@ type main {
     }
 }
 ```
+
+`on_heap` is the allocation hook for program objects. It is called when the compiler decides an object must live on the heap, or when the programmer forces it:
+
+```c
+heap node n;
+```
+
+Owner/runtime infrastructure must not recursively allocate through `on_heap`.
+For example, if `heap_objects.add(p)` needs storage to track allocations, that storage must come from bootstrap/owner memory, not from the normal program heap hook.
+
+Rule:
+
+- program object heap allocation → `on_heap`
+- owner/runtime bookkeeping allocation → bootstrap allocator
+- `on_heap` may record returned pointers for later cleanup
+- bootstrap allocation must not call `on_heap`
 
 ---
 
@@ -377,6 +395,7 @@ Supported language subset:
 - `pointer T` types, including pointers to primitive and Kite-defined types
 - Kite-defined object variables are references; local non-escaping objects currently lower to stack storage plus a pointer reference
 - explicit heap object declarations with `heap T name`
+- runtime `kite_on_heap(size)` helper for heap object allocation; currently backed by `malloc`
 - `delete expr;` lowers to explicit memory release for heap/manual pointers
 - basic arrays: `T[]`, `array T(n)`, indexing with `a[i]`, and `a.length`
 
