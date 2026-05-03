@@ -7,7 +7,7 @@ type node {
 }
 
 type main {
-    pointer_list heap_objects;
+    list heap_objects;
 
     pointer on_heap(int size) {
         pointer p = bootstrap_alloc(size);

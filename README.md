@@ -164,7 +164,7 @@ delete obj;
 
 ```c
 type main {
-    pointer_list heap_objects;
+    list heap_objects;
 
     pointer on_heap(int size) {
         pointer p = bootstrap_alloc(size);
@@ -194,7 +194,7 @@ node n;
 
 Owner/runtime infrastructure must not recursively allocate through `on_heap`.
 For example, if `heap_objects.add(p)` needs storage to track allocations, that storage must come from bootstrap/owner memory, not from the normal program heap hook.
-The current compiler includes a bootstrap `pointer_list` runtime helper for this pattern.
+For now, the compiler specializes owner `list` fields into a bootstrap pointer-list implementation internally.
 
 Rule:
 

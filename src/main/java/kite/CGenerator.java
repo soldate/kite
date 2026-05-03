@@ -57,7 +57,7 @@ final class CGenerator {
         out.append("static void* bootstrap_alloc(int32_t size) { return malloc(size); }\n\n");
 
         indexFields(program);
-        if (usesPointerList(program)) {
+        if (usesBootstrapList(program)) {
             emitPointerListRuntime();
         }
         collectArrayTypes(program);
@@ -118,20 +118,14 @@ final class CGenerator {
         return false;
     }
 
-    private boolean usesPointerList(Program program) {
+    private boolean usesBootstrapList(Program program) {
         for (TypeDecl type : program.types()) {
             for (Member member : type.members()) {
-                if (member instanceof FieldDecl field && field.type().equals("pointer_list")) {
+                if (member instanceof FieldDecl field && isBootstrapListField(type.name(), field.type())) {
                     return true;
                 }
                 if (member instanceof MethodDecl method) {
-                    if (method.returnType().equals("pointer_list")) {
-                        return true;
-                    }
-                    if (method.params().stream().anyMatch(param -> param.type().equals("pointer_list"))) {
-                        return true;
-                    }
-                    if (method.body().stream().anyMatch(this::usesPointerList)) {
+                    if (method.body().stream().anyMatch(this::usesBootstrapList)) {
                         return true;
                     }
                 }
@@ -140,22 +134,20 @@ final class CGenerator {
         return false;
     }
 
-    private boolean usesPointerList(Stmt stmt) {
+    private boolean usesBootstrapList(Stmt stmt) {
         if (stmt == null) {
             return false;
         }
-        if (stmt instanceof VarDecl varDecl) {
-            return varDecl.type().equals("pointer_list");
-        }
         if (stmt instanceof IfStmt ifStmt) {
-            return ifStmt.thenBranch().stream().anyMatch(this::usesPointerList)
-                    || ifStmt.elseBranch().stream().anyMatch(this::usesPointerList);
+            return ifStmt.thenBranch().stream().anyMatch(this::usesBootstrapList)
+                    || ifStmt.elseBranch().stream().anyMatch(this::usesBootstrapList);
         }
         if (stmt instanceof WhileStmt whileStmt) {
-            return whileStmt.body().stream().anyMatch(this::usesPointerList);
+            return whileStmt.body().stream().anyMatch(this::usesBootstrapList);
         }
         if (stmt instanceof ForStmt forStmt) {
-            return usesPointerList(forStmt.initializer()) || forStmt.body().stream().anyMatch(this::usesPointerList);
+            return usesBootstrapList(forStmt.initializer())
+                    || forStmt.body().stream().anyMatch(this::usesBootstrapList);
         }
         return false;
     }
@@ -302,10 +294,17 @@ final class CGenerator {
         out.append("typedef struct ").append(cStructName(type.name())).append(" {\n");
         for (Member member : type.members()) {
             if (member instanceof FieldDecl field) {
-                out.append("    ").append(cType(field.type())).append(" ").append(field.name()).append(";\n");
+                out.append("    ").append(cFieldType(type, field)).append(" ").append(field.name()).append(";\n");
             }
         }
         out.append("} ").append(cStructName(type.name())).append(";\n\n");
+    }
+
+    private String cFieldType(TypeDecl owner, FieldDecl field) {
+        if (isBootstrapListField(owner.name(), field.type())) {
+            return "kite_pointer_list";
+        }
+        return cType(field.type());
     }
 
     private void emitMethod(TypeDecl type, MethodDecl method) {
@@ -552,7 +551,7 @@ final class CGenerator {
                     return objectType + "_" + get.name() + "(" + allArgs + ")";
                 }
                 String fieldType = fieldTypesByType.getOrDefault(currentType, Map.of()).get(variable.name());
-                if (fieldType != null && fieldType.equals("pointer_list")) {
+                if (fieldType != null && isBootstrapListField(currentType, fieldType)) {
                     String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
                     String selfArg = "&" + expr(get.object());
                     String allArgs = args.isEmpty() ? selfArg : selfArg + ", " + args;
@@ -613,6 +612,10 @@ final class CGenerator {
 
     private boolean isKiteObject(String kiteType) {
         return typeNames.contains(kiteType);
+    }
+
+    private boolean isBootstrapListField(String ownerType, String fieldType) {
+        return ownerType.equals("main") && fieldType.equals("list");
     }
 
     private String storageName(String variableName) {
