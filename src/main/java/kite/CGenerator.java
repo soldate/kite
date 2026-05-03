@@ -585,6 +585,11 @@ final class CGenerator {
                 return currentType + "_" + variable.name() + "(" + allArgs + ")";
             }
             if (call.callee() instanceof Get get && get.object() instanceof Variable variable) {
+                if (variable.name().equals("allocator")) {
+                    validateAllocatorCall(get, call);
+                    String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
+                    return "bootstrap_alloc(" + args + ")";
+                }
                 String objectType = localTypes.get(variable.name());
                 if (objectType != null && typeNames.contains(objectType)) {
                     String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
@@ -594,6 +599,7 @@ final class CGenerator {
                 }
                 String fieldType = fieldTypesByType.getOrDefault(currentType, Map.of()).get(variable.name());
                 if (fieldType != null && isBootstrapListField(currentType, fieldType)) {
+                    validateOwnerListCall(get, call);
                     String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
                     String selfArg = "&" + expr(get.object());
                     String allArgs = args.isEmpty() ? selfArg : selfArg + ", " + args;
@@ -610,6 +616,34 @@ final class CGenerator {
             return expr(binary.left()) + " " + binary.operator() + " " + expr(binary.right());
         }
         throw new IllegalStateException("Unknown expression: " + expr);
+    }
+
+    private void validateAllocatorCall(Get get, Call call) {
+        if (!currentType.equals("main")) {
+            throw new KiteException("allocator.alloc is currently supported only inside type main");
+        }
+        if (!get.name().equals("alloc")) {
+            throw new KiteException("Unsupported allocator method '" + get.name() + "'");
+        }
+        if (call.args().size() != 1) {
+            throw new KiteException("allocator.alloc expects 1 argument");
+        }
+    }
+
+    private void validateOwnerListCall(Get get, Call call) {
+        if (get.name().equals("add")) {
+            if (call.args().size() != 1) {
+                throw new KiteException("owner list add expects 1 argument");
+            }
+            return;
+        }
+        if (get.name().equals("delete_all")) {
+            if (!call.args().isEmpty()) {
+                throw new KiteException("owner list delete_all expects 0 arguments");
+            }
+            return;
+        }
+        throw new KiteException("Unsupported owner list method '" + get.name() + "'");
     }
 
     private String cType(String kiteType) {

@@ -205,6 +205,8 @@ Rule:
 - owner/runtime bookkeeping allocation → bootstrap allocator
 - `type main` fields are owner/bootstrap infrastructure
 - types used by owner fields must be adapted by the compiler when they allocate internally
+- owner `list` currently supports `add(pointer)` and `delete_all()`
+- `allocator.alloc(size)` is currently supported only inside `type main`
 - `on_heap` may record returned pointers for later cleanup
 - bootstrap allocation must not call `on_heap`
 - if `on_heap` records an object for owner cleanup, regular program code must not also `delete` that same object

@@ -201,6 +201,80 @@ final class CompilerTest {
         assertEquals("list is currently supported only as a type main owner field", error.getMessage());
     }
 
+    @Test
+    void rejectsUnsupportedAllocatorMethods() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    void main() {
+                        pointer p = allocator.free(1);
+                    }
+                }
+                """));
+
+        assertEquals("Unsupported allocator method 'free'", error.getMessage());
+    }
+
+    @Test
+    void rejectsAllocatorAllocWithWrongArity() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    void main() {
+                        pointer p = allocator.alloc();
+                    }
+                }
+                """));
+
+        assertEquals("allocator.alloc expects 1 argument", error.getMessage());
+    }
+
+    @Test
+    void rejectsAllocatorAllocOutsideMain() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type helper {
+                    pointer alloc(int size) {
+                        return allocator.alloc(size);
+                    }
+                }
+
+                type main {
+                    void main() {
+                    }
+                }
+                """));
+
+        assertEquals("allocator.alloc is currently supported only inside type main", error.getMessage());
+    }
+
+    @Test
+    void rejectsUnsupportedOwnerListMethods() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    list heap_objects;
+
+                    void main() {
+                        heap_objects.clear();
+                    }
+                }
+                """));
+
+        assertEquals("Unsupported owner list method 'clear'", error.getMessage());
+    }
+
+    @Test
+    void rejectsOwnerListAddWithWrongArity() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    list heap_objects;
+
+                    void main() {
+                        heap_objects.add();
+                    }
+                }
+                """));
+
+        assertEquals("owner list add expects 1 argument", error.getMessage());
+    }
+
     private String compileExample(String fileName) throws IOException {
         String source = Files.readString(Path.of("examples", fileName));
         return compiler.compile(source);
