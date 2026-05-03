@@ -14,13 +14,13 @@ The goal is to make code clean, predictable, and explicit where it matters.
 Kite follows a few core principles:
 
 - no garbage collector
-- no hidden lifetime management
+- no hidden allocation or lifetime management
 - no global magic
 - no forced safety model
 - happy path first
 - full control when needed
 
-> Kite may hide where memory is allocated, but it never hides when memory is freed.
+> Kite does not hide where memory is allocated, and it never hides when memory is freed.
 
 ---
 
@@ -178,7 +178,13 @@ type main {
 }
 ```
 
-`on_heap` is the allocation hook for program objects. It is called when the compiler decides an object must live on the heap, or when the programmer forces it:
+`on_heap` is the allocation hook for heap-allocated program objects. It is called for normal object declarations, which allocate on the heap by default:
+
+```c
+node n;
+```
+
+It is also called for the explicit alias:
 
 ```c
 heap node n;
@@ -346,7 +352,7 @@ type list {
         n.next = head;
 
         head = n;
-        // escapes → heap
+        // node objects are heap references by default
     }
 }
 ```
