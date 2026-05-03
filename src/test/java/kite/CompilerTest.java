@@ -120,8 +120,8 @@ final class CompilerTest {
     }
 
     @Test
-    void compilesExplicitHeapObjects() throws IOException {
-        String c = compileExample("heap.kite");
+    void compilesDefaultHeapObjects() throws IOException {
+        String c = compileExample("default_heap.kite");
 
         assertTrue(c.contains("static void* kite_on_heap(size_t size) { return bootstrap_alloc((int32_t)size); }"));
         assertTrue(c.contains("kite_node* n = kite_on_heap(sizeof(kite_node));"));

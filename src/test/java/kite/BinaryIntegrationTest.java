@@ -53,8 +53,8 @@ final class BinaryIntegrationTest {
     }
 
     @Test
-    void heapExampleCompilesAndRuns() throws IOException, InterruptedException {
-        assertExampleOutput("heap.kite", "");
+    void defaultHeapExampleCompilesAndRuns() throws IOException, InterruptedException {
+        assertExampleOutput("default_heap.kite", "");
     }
 
     @Test

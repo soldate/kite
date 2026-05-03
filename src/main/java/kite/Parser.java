@@ -154,7 +154,6 @@ final class Parser {
 
     private VarDecl varDecl() {
         boolean stack = match(TokenType.STACK);
-        match(TokenType.HEAP);
         String type = parseType();
         String name = consume(TokenType.IDENTIFIER, "Expected variable name").lexeme();
         Expr initializer = null;
@@ -305,7 +304,7 @@ final class Parser {
     }
 
     private boolean isVarDeclStart() {
-        if (check(TokenType.HEAP) || check(TokenType.STACK)) {
+        if (check(TokenType.STACK)) {
             return true;
         }
         if (check(TokenType.POINTER)) {

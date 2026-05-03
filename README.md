@@ -151,8 +151,6 @@ stack node n;
 - must not be released with `delete`
 - different from `pointer node`, which is nullable/manual pointer syntax
 
-Explicit `heap node n;` is accepted as an alias for the default heap behavior, but it is usually unnecessary.
-
 ```c
 delete obj;
 ```
@@ -182,12 +180,6 @@ type main {
 
 ```c
 node n;
-```
-
-It is also called for the explicit alias:
-
-```c
-heap node n;
 ```
 
 Owner/runtime infrastructure must not recursively allocate through `on_heap`.
@@ -404,7 +396,6 @@ Supported language subset:
 - `pointer T` types, including pointers to primitive and Kite-defined types
 - Kite-defined object variables are references and allocate on heap by default
 - explicit stack object declarations with `stack T name`
-- explicit `heap T name` declarations are accepted as an alias for default heap allocation
 - runtime `kite_on_heap(size)` helper for heap object allocation; currently backed by `malloc`
 - `type main` may define `pointer on_heap(int size)` to override program-object heap allocation
 - `delete expr;` lowers to explicit memory release for heap/manual pointers
@@ -424,7 +415,7 @@ examples/order.kite
 examples/pointers.kite
 examples/references.kite
 examples/arrays.kite
-examples/heap.kite
+examples/default_heap.kite
 examples/owner.kite
 ```
 
