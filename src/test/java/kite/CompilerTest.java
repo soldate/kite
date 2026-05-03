@@ -123,12 +123,18 @@ final class CompilerTest {
     void compilesDefaultHeapObjects() throws IOException {
         String c = compileExample("default_heap.kite");
 
-        assertTrue(c.contains("static void* kite_on_heap(size_t size) { return bootstrap_alloc((int32_t)size); }"));
-        assertTrue(c.contains("kite_node* n = kite_on_heap(sizeof(kite_node));"));
-        assertTrue(c.contains("node_init(n, 10);"));
-        assertTrue(c.contains("n->value = 20;"));
-        assertTrue(c.contains("free(n);"));
-        assertFalse(c.contains("_n_storage"));
+        assertTrue(c.contains("static void* kite_on_heap(size_t size) { return main_on_heap(&kite_owner, (int32_t)size); }"));
+        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size) {"));
+        assertTrue(c.contains("self->heap0 = p;"));
+        assertTrue(c.contains("self->heap1 = p;"));
+        assertTrue(c.contains("kite_node* a = kite_on_heap(sizeof(kite_node));"));
+        assertTrue(c.contains("node_init(a, 10);"));
+        assertTrue(c.contains("kite_node* b = kite_on_heap(sizeof(kite_node));"));
+        assertTrue(c.contains("main_clean_heap(&kite_owner);"));
+        assertTrue(c.contains("free(self->heap0);"));
+        assertTrue(c.contains("free(self->heap1);"));
+        assertFalse(c.contains("_a_storage"));
+        assertFalse(c.contains("_b_storage"));
     }
 
     @Test

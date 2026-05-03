@@ -138,7 +138,7 @@ node n;
 - heap by default
 - allocation goes through `on_heap`
 - lifetime is manual
-- must be released with `delete n;`
+- must be released explicitly, usually by the owner that recorded the allocation
 
 Force stack allocation:
 
@@ -156,7 +156,9 @@ delete obj;
 ```
 
 - always manual
+- should not be mixed with owner cleanup for the same object
 - forgetting = memory leak
+- deleting twice = bug
 
 ---
 
@@ -164,14 +166,38 @@ delete obj;
 
 ```c
 type main {
+    pointer heap0;
+    pointer heap1;
+    int heap_count;
+
     pointer on_heap(int size) {
-        pointer p = allocator.alloc(size);
-        heap_objects.add(p);
+        pointer p = bootstrap_alloc(size);
+
+        if (heap_count == 0) {
+            heap0 = p;
+        } else {
+            heap1 = p;
+        }
+
+        heap_count = heap_count + 1;
         return p;
     }
 
-    void on_error(string e) {
-        console.write("error: " + e);
+    void clean_heap() {
+        if (heap_count > 0) {
+            delete heap0;
+        }
+
+        if (heap_count > 1) {
+            delete heap1;
+        }
+    }
+
+    void main() {
+        node a = node(10);
+        node b = node(20);
+
+        clean_heap();
     }
 }
 ```
@@ -191,6 +217,7 @@ Rule:
 - owner/runtime bookkeeping allocation → bootstrap allocator
 - `on_heap` may record returned pointers for later cleanup
 - bootstrap allocation must not call `on_heap`
+- if `on_heap` records an object for owner cleanup, regular program code must not also `delete` that same object
 
 ---
 

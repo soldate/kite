@@ -35,9 +35,13 @@ import kite.Ast.WhileStmt;
 final class CGenerator {
     private final StringBuilder out = new StringBuilder();
     private final Map<String, Set<String>> fieldsByType = new HashMap<>();
+    private final Map<String, Set<String>> methodsByType = new HashMap<>();
     private final Set<String> typeNames = new HashSet<>();
     private final Set<String> arrayTypes = new LinkedHashSet<>();
     private Set<String> currentFields = Set.of();
+    private Set<String> currentMethods = Set.of();
+    private String currentType = "";
+    private boolean currentMethodIsEntrypoint;
     private Set<String> locals = Set.of();
     private Set<String> stackLocals = Set.of();
     private Map<String, String> localTypes = Map.of();
@@ -71,13 +75,17 @@ final class CGenerator {
         emitHeapHook(program);
 
         for (TypeDecl type : program.types()) {
+            currentType = type.name();
             currentFields = fieldsByType.getOrDefault(type.name(), Set.of());
+            currentMethods = methodsByType.getOrDefault(type.name(), Set.of());
             for (Member member : type.members()) {
                 if (member instanceof MethodDecl method) {
                     emitMethod(type, method);
                 }
             }
+            currentType = "";
             currentFields = Set.of();
+            currentMethods = Set.of();
         }
 
         return out.toString();
@@ -122,12 +130,16 @@ final class CGenerator {
         for (TypeDecl type : program.types()) {
             typeNames.add(type.name());
             Set<String> fields = new HashSet<>();
+            Set<String> methods = new HashSet<>();
             for (Member member : type.members()) {
                 if (member instanceof FieldDecl field) {
                     fields.add(field.name());
+                } else if (member instanceof MethodDecl method) {
+                    methods.add(method.name());
                 }
             }
             fieldsByType.put(type.name(), fields);
+            methodsByType.put(type.name(), methods);
         }
     }
 
@@ -223,6 +235,7 @@ final class CGenerator {
 
     private void emitMethod(TypeDecl type, MethodDecl method) {
         boolean isEntrypoint = isEntrypoint(type, method);
+        currentMethodIsEntrypoint = isEntrypoint;
         locals = new HashSet<>();
         stackLocals = new HashSet<>();
         localTypes = new HashMap<>();
@@ -246,6 +259,7 @@ final class CGenerator {
         locals = Set.of();
         stackLocals = Set.of();
         localTypes = Map.of();
+        currentMethodIsEntrypoint = false;
     }
 
     private boolean isEntrypoint(TypeDecl type, MethodDecl method) {
@@ -448,6 +462,12 @@ final class CGenerator {
             return expr(index.object()) + "->data[" + expr(index.index()) + "]";
         }
         if (expr instanceof Call call) {
+            if (call.callee() instanceof Variable variable && currentMethods.contains(variable.name())) {
+                String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
+                String selfArg = currentMethodIsEntrypoint && currentType.equals("main") ? "&kite_owner" : "self";
+                String allArgs = args.isEmpty() ? selfArg : selfArg + ", " + args;
+                return currentType + "_" + variable.name() + "(" + allArgs + ")";
+            }
             if (call.callee() instanceof Get get && get.object() instanceof Variable variable) {
                 String objectType = localTypes.get(variable.name());
                 if (objectType != null && typeNames.contains(objectType)) {
