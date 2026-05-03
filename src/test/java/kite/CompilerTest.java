@@ -145,8 +145,13 @@ final class CompilerTest {
         assertTrue(c.contains("static kite_main kite_owner;"));
         assertTrue(c.contains("static void* kite_on_heap(size_t size) { return main_on_heap(&kite_owner, (int32_t)size); }"));
         assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size) {"));
-        assertTrue(c.contains("return bootstrap_alloc(size);"));
-        assertTrue(c.contains("kite_node* n = kite_on_heap(sizeof(kite_node));"));
+        assertTrue(c.contains("void* p = bootstrap_alloc(size);"));
+        assertTrue(c.contains("pointer_list_add(&self->heap_objects, p);"));
+        assertTrue(c.contains("void main_clean_heap(kite_main* self) {"));
+        assertTrue(c.contains("pointer_list_delete_all(&self->heap_objects);"));
+        assertTrue(c.contains("kite_node* first = kite_on_heap(sizeof(kite_node));"));
+        assertTrue(c.contains("kite_node* second = kite_on_heap(sizeof(kite_node));"));
+        assertTrue(c.contains("main_clean_heap(&kite_owner);"));
     }
 
     @Test

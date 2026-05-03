@@ -1,12 +1,24 @@
 type main {
+    list heap_objects;
+
     pointer on_heap(int size) {
-        return bootstrap_alloc(size);
+        pointer p = bootstrap_alloc(size);
+
+        heap_objects.add(p);
+        return p;
+    }
+
+    void clean_heap() {
+        heap_objects.delete_all();
     }
 
     void main() {
-        node n = node(10);
+        node first = node(10);
+        node second = node(20);
 
-        delete n;
+        first.value = second.value;
+
+        clean_heap();
     }
 }
 

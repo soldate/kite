@@ -195,6 +195,7 @@ node n;
 Owner/runtime infrastructure must not recursively allocate through `on_heap`.
 For example, if `heap_objects.add(p)` needs storage to track allocations, that storage must come from bootstrap/owner memory, not from the normal program heap hook.
 For now, the compiler specializes owner `list` fields into a bootstrap pointer-list implementation internally.
+`bootstrap_alloc` is the current compiler/runtime primitive for allocation that bypasses `on_heap`; it is backed by `malloc` today and should later become a proper owner allocator API, such as `allocator.alloc`.
 
 Fields declared in `type main` are owner fields. If an owner field uses a `type` that performs internal allocations, the compiler must generate an owner/bootstrap variant of that type so its internal storage does not call `on_heap`.
 
