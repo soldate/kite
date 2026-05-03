@@ -39,6 +39,7 @@ final class CGenerator {
     private final Set<String> arrayTypes = new LinkedHashSet<>();
     private Set<String> currentFields = Set.of();
     private Set<String> locals = Set.of();
+    private Set<String> stackLocals = Set.of();
     private Map<String, String> localTypes = Map.of();
     private int indentLevel;
 
@@ -223,6 +224,7 @@ final class CGenerator {
     private void emitMethod(TypeDecl type, MethodDecl method) {
         boolean isEntrypoint = isEntrypoint(type, method);
         locals = new HashSet<>();
+        stackLocals = new HashSet<>();
         localTypes = new HashMap<>();
         method.params().forEach(param -> {
             locals.add(param.name());
@@ -242,6 +244,7 @@ final class CGenerator {
         indentLevel--;
         out.append("}\n\n");
         locals = Set.of();
+        stackLocals = Set.of();
         localTypes = Map.of();
     }
 
@@ -263,6 +266,7 @@ final class CGenerator {
         if (stmt instanceof VarDecl varDecl) {
             emitVarDecl(varDecl);
         } else if (stmt instanceof DeleteStmt deleteStmt) {
+            validateDelete(deleteStmt);
             line("free(" + expr(deleteStmt.expr()) + ");");
         } else if (stmt instanceof ExprStmt exprStmt) {
             line(expr(exprStmt.expr()) + ";");
@@ -298,6 +302,9 @@ final class CGenerator {
     private void emitVarDecl(VarDecl varDecl) {
         locals.add(varDecl.name());
         localTypes.put(varDecl.name(), varDecl.type());
+        if (varDecl.stack()) {
+            stackLocals.add(varDecl.name());
+        }
 
         if (isArrayType(varDecl.type())) {
             emitArrayVarDecl(varDecl);
@@ -329,6 +336,12 @@ final class CGenerator {
                 out.append(" = ").append(expr(varDecl.initializer()));
             }
             out.append(";\n");
+        }
+    }
+
+    private void validateDelete(DeleteStmt deleteStmt) {
+        if (deleteStmt.expr() instanceof Variable variable && stackLocals.contains(variable.name())) {
+            throw new KiteException("Cannot delete stack object '" + variable.name() + "'");
         }
     }
 

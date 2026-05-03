@@ -2,6 +2,7 @@ package kite;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -155,6 +156,24 @@ final class CompilerTest {
         assertTrue(c.contains("numbers->data = calloc(3, sizeof(int32_t));"));
         assertTrue(c.contains("numbers->data[0] = 5;"));
         assertTrue(c.contains("if (numbers->length == 3) {"));
+    }
+
+    @Test
+    void rejectsDeleteOfStackObjects() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type node {
+                    int value;
+                }
+
+                type main {
+                    void main() {
+                        stack node n;
+                        delete n;
+                    }
+                }
+                """));
+
+        assertEquals("Cannot delete stack object 'n'", error.getMessage());
     }
 
     private String compileExample(String fileName) throws IOException {

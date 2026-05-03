@@ -402,6 +402,7 @@ Supported language subset:
 - runtime `kite_on_heap(size)` helper for heap object allocation; currently backed by `malloc`
 - `type main` may define `pointer on_heap(int size)` to override program-object heap allocation
 - `delete expr;` lowers to explicit memory release for heap/manual pointers
+- deleting a known `stack` object is rejected by the compiler
 - basic arrays: `T[]`, `array T(n)`, indexing with `a[i]`, and `a.length`
 
 Examples live in `examples/`:
