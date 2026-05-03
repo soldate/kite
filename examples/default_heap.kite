@@ -7,31 +7,17 @@ type node {
 }
 
 type main {
-    pointer heap0;
-    pointer heap1;
-    int heap_count;
+    pointer_list heap_objects;
 
     pointer on_heap(int size) {
         pointer p = bootstrap_alloc(size);
 
-        if (heap_count == 0) {
-            heap0 = p;
-        } else {
-            heap1 = p;
-        }
-
-        heap_count = heap_count + 1;
+        heap_objects.add(p);
         return p;
     }
 
     void clean_heap() {
-        if (heap_count > 0) {
-            delete heap0;
-        }
-
-        if (heap_count > 1) {
-            delete heap1;
-        }
+        heap_objects.delete_all();
     }
 
     void main() {

@@ -20,8 +20,6 @@ Kite follows a few core principles:
 - happy path first
 - full control when needed
 
-> Kite does not hide where memory is allocated, and it never hides when memory is freed.
-
 ---
 
 ## Basic syntax
@@ -29,7 +27,7 @@ Kite follows a few core principles:
 ```c
 type node {
     int value;
-    pointer node next;
+    pointer node next; // manual pointer, can be 0 (null)
 
     void init(int v) {
         value = v;
@@ -166,31 +164,17 @@ delete obj;
 
 ```c
 type main {
-    pointer heap0;
-    pointer heap1;
-    int heap_count;
+    pointer_list heap_objects;
 
     pointer on_heap(int size) {
         pointer p = bootstrap_alloc(size);
 
-        if (heap_count == 0) {
-            heap0 = p;
-        } else {
-            heap1 = p;
-        }
-
-        heap_count = heap_count + 1;
+        heap_objects.add(p);
         return p;
     }
 
     void clean_heap() {
-        if (heap_count > 0) {
-            delete heap0;
-        }
-
-        if (heap_count > 1) {
-            delete heap1;
-        }
+        heap_objects.delete_all();
     }
 
     void main() {
@@ -210,6 +194,7 @@ node n;
 
 Owner/runtime infrastructure must not recursively allocate through `on_heap`.
 For example, if `heap_objects.add(p)` needs storage to track allocations, that storage must come from bootstrap/owner memory, not from the normal program heap hook.
+The current compiler includes a bootstrap `pointer_list` runtime helper for this pattern.
 
 Rule:
 

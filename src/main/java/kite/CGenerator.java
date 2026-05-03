@@ -35,6 +35,7 @@ import kite.Ast.WhileStmt;
 final class CGenerator {
     private final StringBuilder out = new StringBuilder();
     private final Map<String, Set<String>> fieldsByType = new HashMap<>();
+    private final Map<String, Map<String, String>> fieldTypesByType = new HashMap<>();
     private final Map<String, Set<String>> methodsByType = new HashMap<>();
     private final Set<String> typeNames = new HashSet<>();
     private final Set<String> arrayTypes = new LinkedHashSet<>();
@@ -56,6 +57,9 @@ final class CGenerator {
         out.append("static void* bootstrap_alloc(int32_t size) { return malloc(size); }\n\n");
 
         indexFields(program);
+        if (usesPointerList(program)) {
+            emitPointerListRuntime();
+        }
         collectArrayTypes(program);
 
         for (String arrayType : arrayTypes) {
@@ -114,6 +118,74 @@ final class CGenerator {
         return false;
     }
 
+    private boolean usesPointerList(Program program) {
+        for (TypeDecl type : program.types()) {
+            for (Member member : type.members()) {
+                if (member instanceof FieldDecl field && field.type().equals("pointer_list")) {
+                    return true;
+                }
+                if (member instanceof MethodDecl method) {
+                    if (method.returnType().equals("pointer_list")) {
+                        return true;
+                    }
+                    if (method.params().stream().anyMatch(param -> param.type().equals("pointer_list"))) {
+                        return true;
+                    }
+                    if (method.body().stream().anyMatch(this::usesPointerList)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean usesPointerList(Stmt stmt) {
+        if (stmt == null) {
+            return false;
+        }
+        if (stmt instanceof VarDecl varDecl) {
+            return varDecl.type().equals("pointer_list");
+        }
+        if (stmt instanceof IfStmt ifStmt) {
+            return ifStmt.thenBranch().stream().anyMatch(this::usesPointerList)
+                    || ifStmt.elseBranch().stream().anyMatch(this::usesPointerList);
+        }
+        if (stmt instanceof WhileStmt whileStmt) {
+            return whileStmt.body().stream().anyMatch(this::usesPointerList);
+        }
+        if (stmt instanceof ForStmt forStmt) {
+            return usesPointerList(forStmt.initializer()) || forStmt.body().stream().anyMatch(this::usesPointerList);
+        }
+        return false;
+    }
+
+    private void emitPointerListRuntime() {
+        out.append("typedef struct kite_pointer_list {\n");
+        out.append("    int32_t count;\n");
+        out.append("    int32_t capacity;\n");
+        out.append("    void** data;\n");
+        out.append("} kite_pointer_list;\n\n");
+        out.append("static void pointer_list_add(kite_pointer_list* self, void* item) {\n");
+        out.append("    if (self->count == self->capacity) {\n");
+        out.append("        int32_t next_capacity = self->capacity == 0 ? 8 : self->capacity * 2;\n");
+        out.append("        self->data = realloc(self->data, sizeof(void*) * next_capacity);\n");
+        out.append("        self->capacity = next_capacity;\n");
+        out.append("    }\n");
+        out.append("    self->data[self->count] = item;\n");
+        out.append("    self->count = self->count + 1;\n");
+        out.append("}\n\n");
+        out.append("static void pointer_list_delete_all(kite_pointer_list* self) {\n");
+        out.append("    for (int32_t i = 0; i < self->count; i = i + 1) {\n");
+        out.append("        free(self->data[i]);\n");
+        out.append("    }\n");
+        out.append("    free(self->data);\n");
+        out.append("    self->data = NULL;\n");
+        out.append("    self->count = 0;\n");
+        out.append("    self->capacity = 0;\n");
+        out.append("}\n\n");
+    }
+
     private List<String> methodPrototypes(Program program) {
         List<String> prototypes = new ArrayList<>();
         for (TypeDecl type : program.types()) {
@@ -130,15 +202,18 @@ final class CGenerator {
         for (TypeDecl type : program.types()) {
             typeNames.add(type.name());
             Set<String> fields = new HashSet<>();
+            Map<String, String> fieldTypes = new HashMap<>();
             Set<String> methods = new HashSet<>();
             for (Member member : type.members()) {
                 if (member instanceof FieldDecl field) {
                     fields.add(field.name());
+                    fieldTypes.put(field.name(), field.type());
                 } else if (member instanceof MethodDecl method) {
                     methods.add(method.name());
                 }
             }
             fieldsByType.put(type.name(), fields);
+            fieldTypesByType.put(type.name(), fieldTypes);
             methodsByType.put(type.name(), methods);
         }
     }
@@ -475,6 +550,13 @@ final class CGenerator {
                     String selfArg = variable.name();
                     String allArgs = args.isEmpty() ? selfArg : selfArg + ", " + args;
                     return objectType + "_" + get.name() + "(" + allArgs + ")";
+                }
+                String fieldType = fieldTypesByType.getOrDefault(currentType, Map.of()).get(variable.name());
+                if (fieldType != null && fieldType.equals("pointer_list")) {
+                    String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
+                    String selfArg = "&" + expr(get.object());
+                    String allArgs = args.isEmpty() ? selfArg : selfArg + ", " + args;
+                    return "pointer_list_" + get.name() + "(" + allArgs + ")";
                 }
             }
             String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
