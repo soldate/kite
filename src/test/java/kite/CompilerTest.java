@@ -228,6 +228,19 @@ final class CompilerTest {
     }
 
     @Test
+    void rejectsAllocatorAllocWithNonIntegerSize() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    void main() {
+                        pointer p = allocator.alloc("large");
+                    }
+                }
+                """));
+
+        assertEquals("allocator.alloc size must be an integer", error.getMessage());
+    }
+
+    @Test
     void rejectsAllocatorAllocOutsideMain() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
                 type helper {
@@ -273,6 +286,21 @@ final class CompilerTest {
                 """));
 
         assertEquals("owner list add expects 1 argument", error.getMessage());
+    }
+
+    @Test
+    void rejectsOwnerListAddWithNonPointer() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    list heap_objects;
+
+                    void main() {
+                        heap_objects.add(1);
+                    }
+                }
+                """));
+
+        assertEquals("owner list add expects a pointer", error.getMessage());
     }
 
     private String compileExample(String fileName) throws IOException {

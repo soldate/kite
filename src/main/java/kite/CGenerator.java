@@ -628,12 +628,20 @@ final class CGenerator {
         if (call.args().size() != 1) {
             throw new KiteException("allocator.alloc expects 1 argument");
         }
+        String sizeType = exprType(call.args().get(0));
+        if (sizeType != null && !isIntegerType(sizeType)) {
+            throw new KiteException("allocator.alloc size must be an integer");
+        }
     }
 
     private void validateOwnerListCall(Get get, Call call) {
         if (get.name().equals("add")) {
             if (call.args().size() != 1) {
                 throw new KiteException("owner list add expects 1 argument");
+            }
+            String itemType = exprType(call.args().get(0));
+            if (itemType != null && !isPointerLikeType(itemType)) {
+                throw new KiteException("owner list add expects a pointer");
             }
             return;
         }
@@ -644,6 +652,43 @@ final class CGenerator {
             return;
         }
         throw new KiteException("Unsupported owner list method '" + get.name() + "'");
+    }
+
+    private String exprType(Expr expr) {
+        if (expr instanceof Literal literal) {
+            return literal.value().startsWith("\"") ? "string" : "int";
+        }
+        if (expr instanceof Variable variable) {
+            String localType = localTypes.get(variable.name());
+            if (localType != null) {
+                return localType;
+            }
+            return fieldTypesByType.getOrDefault(currentType, Map.of()).get(variable.name());
+        }
+        if (expr instanceof Call call && call.callee() instanceof Get get
+                && get.object() instanceof Variable variable
+                && variable.name().equals("allocator")
+                && get.name().equals("alloc")) {
+            return "pointer";
+        }
+        if (expr instanceof Get get && get.name().equals("length") && isArrayExpr(get.object())) {
+            return "int";
+        }
+        if (expr instanceof Binary) {
+            return "int";
+        }
+        if (expr instanceof Assign assign) {
+            return exprType(assign.value());
+        }
+        return null;
+    }
+
+    private boolean isIntegerType(String type) {
+        return Set.of("int", "uint", "long", "ulong", "byte", "char").contains(type);
+    }
+
+    private boolean isPointerLikeType(String type) {
+        return type.equals("pointer") || type.startsWith("pointer ") || isKiteObject(type);
     }
 
     private String cType(String kiteType) {
