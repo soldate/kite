@@ -31,8 +31,10 @@ import kite.Ast.WhileStmt;
 final class CGenerator {
     private final StringBuilder out = new StringBuilder();
     private final Map<String, Set<String>> fieldsByType = new HashMap<>();
+    private final Set<String> typeNames = new HashSet<>();
     private Set<String> currentFields = Set.of();
     private Set<String> locals = Set.of();
+    private Map<String, String> localTypes = Map.of();
     private int indentLevel;
 
     String generate(Program program) {
@@ -62,6 +64,7 @@ final class CGenerator {
 
     private void indexFields(Program program) {
         for (TypeDecl type : program.types()) {
+            typeNames.add(type.name());
             Set<String> fields = new HashSet<>();
             for (Member member : type.members()) {
                 if (member instanceof FieldDecl field) {
@@ -85,7 +88,11 @@ final class CGenerator {
     private void emitMethod(TypeDecl type, MethodDecl method) {
         boolean isEntrypoint = type.name().equals("main") && method.name().equals("main") && method.params().isEmpty();
         locals = new HashSet<>();
-        method.params().forEach(param -> locals.add(param.name()));
+        localTypes = new HashMap<>();
+        method.params().forEach(param -> {
+            locals.add(param.name());
+            localTypes.put(param.name(), param.type());
+        });
 
         if (isEntrypoint) {
             out.append("int main(void)");
@@ -112,11 +119,13 @@ final class CGenerator {
         indentLevel--;
         out.append("}\n\n");
         locals = Set.of();
+        localTypes = Map.of();
     }
 
     private void emitStmt(Stmt stmt) {
         if (stmt instanceof VarDecl varDecl) {
             locals.add(varDecl.name());
+            localTypes.put(varDecl.name(), varDecl.type());
             indent();
             out.append(cType(varDecl.type())).append(" ").append(varDecl.name());
             if (varDecl.initializer() != null) {
@@ -160,6 +169,7 @@ final class CGenerator {
         }
         if (initializer instanceof VarDecl varDecl) {
             locals.add(varDecl.name());
+            localTypes.put(varDecl.name(), varDecl.type());
             String text = cType(varDecl.type()) + " " + varDecl.name();
             if (varDecl.initializer() != null) {
                 text += " = " + expr(varDecl.initializer());
@@ -213,6 +223,15 @@ final class CGenerator {
             return expr(get.object()) + "." + get.name();
         }
         if (expr instanceof Call call) {
+            if (call.callee() instanceof Get get && get.object() instanceof Variable variable) {
+                String objectType = localTypes.get(variable.name());
+                if (objectType != null && typeNames.contains(objectType)) {
+                    String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
+                    String selfArg = "&" + variable.name();
+                    String allArgs = args.isEmpty() ? selfArg : selfArg + ", " + args;
+                    return objectType + "_" + get.name() + "(" + allArgs + ")";
+                }
+            }
             String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
             return expr(call.callee()) + "(" + args + ")";
         }

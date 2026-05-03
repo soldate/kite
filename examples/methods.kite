@@ -1,0 +1,15 @@
+type node {
+    int value;
+
+    void init(int v) {
+        value = v;
+    }
+}
+
+type main {
+    void main() {
+        node n;
+
+        n.init(10);
+    }
+}

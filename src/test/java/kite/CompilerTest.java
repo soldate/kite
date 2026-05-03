@@ -71,6 +71,14 @@ final class CompilerTest {
         assertTrue(c.contains("uint8_t value = 1;"));
     }
 
+    @Test
+    void compilesObjectMethodCalls() throws IOException {
+        String c = compileExample("methods.kite");
+
+        assertTrue(c.contains("kite_node n;"));
+        assertTrue(c.contains("node_init(&n, 10);"));
+    }
+
     private String compileExample(String fileName) throws IOException {
         String source = Files.readString(Path.of("examples", fileName));
         return compiler.compile(source);

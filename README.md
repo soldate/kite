@@ -359,6 +359,7 @@ Supported language subset:
 - `while`
 - `for`
 - implicit `self` access for fields inside methods
+- object method calls for local variables, such as `n.init(10)`
 
 Examples live in `examples/`:
 
@@ -368,6 +369,7 @@ examples/node.kite
 examples/control.kite
 examples/for.kite
 examples/types.kite
+examples/methods.kite
 ```
 
 Build the compiler:
