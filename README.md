@@ -454,3 +454,5 @@ Run tests:
 ```bash
 mvn test
 ```
+
+The test suite includes compiler tests and binary integration tests that transpile selected examples to C, compile them with `gcc`, run the resulting binaries, and check stdout.
