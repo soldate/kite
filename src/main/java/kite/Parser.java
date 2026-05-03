@@ -285,7 +285,7 @@ final class Parser {
         String type;
         if (match(TokenType.VOID, TokenType.INT, TokenType.UINT, TokenType.LONG, TokenType.ULONG,
                 TokenType.FLOAT, TokenType.DOUBLE, TokenType.BYTE, TokenType.CHAR, TokenType.BOOL,
-                TokenType.STRING_TYPE, TokenType.IDENTIFIER)) {
+                TokenType.STRING_TYPE, TokenType.LIST, TokenType.IDENTIFIER)) {
             type = previous().lexeme();
             while (match(TokenType.LEFT_BRACKET)) {
                 consume(TokenType.RIGHT_BRACKET, "Expected ']' after array type");
@@ -300,7 +300,8 @@ final class Parser {
         return type == TokenType.VOID || type == TokenType.INT || type == TokenType.UINT || type == TokenType.LONG
                 || type == TokenType.ULONG || type == TokenType.FLOAT || type == TokenType.DOUBLE
                 || type == TokenType.BYTE || type == TokenType.CHAR || type == TokenType.BOOL
-                || type == TokenType.STRING_TYPE || type == TokenType.POINTER || type == TokenType.IDENTIFIER;
+                || type == TokenType.STRING_TYPE || type == TokenType.LIST || type == TokenType.POINTER
+                || type == TokenType.IDENTIFIER;
     }
 
     private boolean isVarDeclStart() {

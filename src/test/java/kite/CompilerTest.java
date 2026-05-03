@@ -182,6 +182,19 @@ final class CompilerTest {
         assertEquals("Cannot delete stack object 'n'", error.getMessage());
     }
 
+    @Test
+    void rejectsListOutsideOwnerFieldsForNow() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    void main() {
+                        list values;
+                    }
+                }
+                """));
+
+        assertEquals("list is currently supported only as a type main owner field", error.getMessage());
+    }
+
     private String compileExample(String fileName) throws IOException {
         String source = Files.readString(Path.of("examples", fileName));
         return compiler.compile(source);

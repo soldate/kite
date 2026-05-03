@@ -57,6 +57,7 @@ final class CGenerator {
         out.append("static void* bootstrap_alloc(int32_t size) { return malloc(size); }\n\n");
 
         indexFields(program);
+        validateListUsage(program);
         if (usesBootstrapList(program)) {
             emitPointerListRuntime();
         }
@@ -116,6 +117,44 @@ final class CGenerator {
             }
         }
         return false;
+    }
+
+    private void validateListUsage(Program program) {
+        for (TypeDecl type : program.types()) {
+            for (Member member : type.members()) {
+                if (member instanceof FieldDecl field) {
+                    if (field.type().equals("list") && !isBootstrapListField(type.name(), field.type())) {
+                        throw new KiteException("list is currently supported only as a type main owner field");
+                    }
+                } else if (member instanceof MethodDecl method) {
+                    if (method.returnType().equals("list")) {
+                        throw new KiteException("list is currently supported only as a type main owner field");
+                    }
+                    if (method.params().stream().anyMatch(param -> param.type().equals("list"))) {
+                        throw new KiteException("list is currently supported only as a type main owner field");
+                    }
+                    method.body().forEach(this::validateListUsage);
+                }
+            }
+        }
+    }
+
+    private void validateListUsage(Stmt stmt) {
+        if (stmt == null) {
+            return;
+        }
+        if (stmt instanceof VarDecl varDecl && varDecl.type().equals("list")) {
+            throw new KiteException("list is currently supported only as a type main owner field");
+        }
+        if (stmt instanceof IfStmt ifStmt) {
+            ifStmt.thenBranch().forEach(this::validateListUsage);
+            ifStmt.elseBranch().forEach(this::validateListUsage);
+        } else if (stmt instanceof WhileStmt whileStmt) {
+            whileStmt.body().forEach(this::validateListUsage);
+        } else if (stmt instanceof ForStmt forStmt) {
+            validateListUsage(forStmt.initializer());
+            forStmt.body().forEach(this::validateListUsage);
+        }
     }
 
     private boolean usesBootstrapList(Program program) {
@@ -573,6 +612,9 @@ final class CGenerator {
     private String cType(String kiteType) {
         if (isArrayType(kiteType)) {
             return cArrayName(kiteType) + "*";
+        }
+        if (kiteType.equals("list")) {
+            return "kite_list*";
         }
         if (kiteType.startsWith("pointer ")) {
             return cPointerType(kiteType.substring("pointer ".length()));

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 final class LexerTest {
     @Test
     void recognizesKiteKeywordsAndPrimitiveTypes() {
-        List<TokenType> types = new Lexer("type bool true false uint long string pointer array stack delete").scanTokens()
+        List<TokenType> types = new Lexer("type bool true false uint long string list pointer array stack delete").scanTokens()
                 .stream()
                 .map(Token::type)
                 .toList();
@@ -22,6 +22,7 @@ final class LexerTest {
                 TokenType.UINT,
                 TokenType.LONG,
                 TokenType.STRING_TYPE,
+                TokenType.LIST,
                 TokenType.POINTER,
                 TokenType.ARRAY,
                 TokenType.STACK,

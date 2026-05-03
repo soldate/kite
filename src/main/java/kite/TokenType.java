@@ -18,6 +18,7 @@ enum TokenType {
     CHAR,
     BOOL,
     STRING_TYPE,
+    LIST,
     POINTER,
     ARRAY,
     STACK,

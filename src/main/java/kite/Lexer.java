@@ -21,6 +21,7 @@ final class Lexer {
         KEYWORDS.put("char", TokenType.CHAR);
         KEYWORDS.put("bool", TokenType.BOOL);
         KEYWORDS.put("string", TokenType.STRING_TYPE);
+        KEYWORDS.put("list", TokenType.LIST);
         KEYWORDS.put("pointer", TokenType.POINTER);
         KEYWORDS.put("array", TokenType.ARRAY);
         KEYWORDS.put("stack", TokenType.STACK);

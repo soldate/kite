@@ -350,7 +350,7 @@ extern "c" {
 ## Example
 
 ```c
-type list {
+type node_list {
     node head;
 
     void add(int v) {
@@ -395,6 +395,7 @@ Supported language subset:
 - fields
 - methods
 - primitive types: `int`, `uint`, `long`, `ulong`, `float`, `double`, `byte`, `char`, `bool`, `string`, `void`
+- builtin `list` type, currently supported for owner heap tracking fields
 - boolean literals: `true`, `false`
 - local variable declarations
 - assignment
@@ -481,7 +482,7 @@ Kite has a small local VS Code extension in:
 tools/vscode-kite/
 ```
 
-It registers `.kite` as the `kite` language and provides TextMate syntax highlighting for Kite-specific keywords such as `type`, `pointer`, `copy`, `delete`, `foreach`, primitive types, strings, comments, and numbers.
+It registers `.kite` as the `kite` language and provides TextMate syntax highlighting for Kite-specific keywords such as `type`, `pointer`, `copy`, `delete`, `foreach`, builtin types such as `list`, primitive types, strings, comments, and numbers.
 
 Install or reinstall it with:
 

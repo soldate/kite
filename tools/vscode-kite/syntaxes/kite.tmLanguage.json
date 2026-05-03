@@ -75,7 +75,7 @@
             "patterns": [
                 {
                     "name": "storage.type.primitive.kite",
-                    "match": "\\b(void|int|uint|long|ulong|float|double|byte|char|bool|string)\\b"
+                    "match": "\\b(void|int|uint|long|ulong|float|double|byte|char|bool|string|list)\\b"
                 }
             ]
         },
