@@ -42,10 +42,13 @@ final class Ast {
     record ForStmt(Stmt initializer, Expr condition, Expr increment, List<Stmt> body) implements Stmt {
     }
 
-    sealed interface Expr permits Assign, Binary, Call, Get, Literal, Variable {
+    sealed interface Expr permits Assign, ArrayNew, Binary, Call, Get, Index, Literal, Variable {
     }
 
     record Assign(Expr target, Expr value) implements Expr {
+    }
+
+    record ArrayNew(String elementType, Expr size) implements Expr {
     }
 
     record Binary(Expr left, String operator, Expr right) implements Expr {
@@ -55,6 +58,9 @@ final class Ast {
     }
 
     record Get(Expr object, String name) implements Expr {
+    }
+
+    record Index(Expr object, Expr index) implements Expr {
     }
 
     record Literal(String value) implements Expr {

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import kite.Ast.Assign;
+import kite.Ast.ArrayNew;
 import kite.Ast.Binary;
 import kite.Ast.Call;
 import kite.Ast.Expr;
@@ -12,6 +13,7 @@ import kite.Ast.FieldDecl;
 import kite.Ast.ForStmt;
 import kite.Ast.Get;
 import kite.Ast.IfStmt;
+import kite.Ast.Index;
 import kite.Ast.Literal;
 import kite.Ast.Member;
 import kite.Ast.MethodDecl;
@@ -232,6 +234,10 @@ final class Parser {
             } else if (match(TokenType.DOT)) {
                 String name = consume(TokenType.IDENTIFIER, "Expected property name after '.'").lexeme();
                 expr = new Get(expr, name);
+            } else if (match(TokenType.LEFT_BRACKET)) {
+                Expr index = expression();
+                consume(TokenType.RIGHT_BRACKET, "Expected ']' after index");
+                expr = new Index(expr, index);
             } else {
                 break;
             }
@@ -246,6 +252,13 @@ final class Parser {
         if (match(TokenType.IDENTIFIER)) {
             return new Variable(previous().lexeme());
         }
+        if (match(TokenType.ARRAY)) {
+            String elementType = parseType();
+            consume(TokenType.LEFT_PAREN, "Expected '(' after array element type");
+            Expr size = expression();
+            consume(TokenType.RIGHT_PAREN, "Expected ')' after array size");
+            return new ArrayNew(elementType, size);
+        }
         if (match(TokenType.LEFT_PAREN)) {
             Expr expr = expression();
             consume(TokenType.RIGHT_PAREN, "Expected ')' after expression");
@@ -258,10 +271,16 @@ final class Parser {
         if (match(TokenType.POINTER)) {
             return "pointer " + parseType();
         }
+        String type;
         if (match(TokenType.VOID, TokenType.INT, TokenType.UINT, TokenType.LONG, TokenType.ULONG,
                 TokenType.FLOAT, TokenType.DOUBLE, TokenType.BYTE, TokenType.CHAR, TokenType.BOOL,
                 TokenType.STRING_TYPE, TokenType.IDENTIFIER)) {
-            return previous().lexeme();
+            type = previous().lexeme();
+            while (match(TokenType.LEFT_BRACKET)) {
+                consume(TokenType.RIGHT_BRACKET, "Expected ']' after array type");
+                type += "[]";
+            }
+            return type;
         }
         throw error(peek(), "Expected type");
     }
@@ -277,7 +296,16 @@ final class Parser {
         if (check(TokenType.POINTER)) {
             return true;
         }
-        return isTypeStart(peek().type()) && checkNext(TokenType.IDENTIFIER);
+        if (!isTypeStart(peek().type())) {
+            return false;
+        }
+        if (checkNext(TokenType.IDENTIFIER)) {
+            return true;
+        }
+        return current + 3 < tokens.size()
+                && tokens.get(current + 1).type() == TokenType.LEFT_BRACKET
+                && tokens.get(current + 2).type() == TokenType.RIGHT_BRACKET
+                && tokens.get(current + 3).type() == TokenType.IDENTIFIER;
     }
 
     private boolean match(TokenType... types) {

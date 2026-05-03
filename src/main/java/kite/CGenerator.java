@@ -3,12 +3,14 @@ package kite;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import kite.Ast.Assign;
+import kite.Ast.ArrayNew;
 import kite.Ast.Binary;
 import kite.Ast.Call;
 import kite.Ast.Expr;
@@ -17,6 +19,7 @@ import kite.Ast.FieldDecl;
 import kite.Ast.ForStmt;
 import kite.Ast.Get;
 import kite.Ast.IfStmt;
+import kite.Ast.Index;
 import kite.Ast.Literal;
 import kite.Ast.Member;
 import kite.Ast.MethodDecl;
@@ -32,6 +35,7 @@ final class CGenerator {
     private final StringBuilder out = new StringBuilder();
     private final Map<String, Set<String>> fieldsByType = new HashMap<>();
     private final Set<String> typeNames = new HashSet<>();
+    private final Set<String> arrayTypes = new LinkedHashSet<>();
     private Set<String> currentFields = Set.of();
     private Set<String> locals = Set.of();
     private Map<String, String> localTypes = Map.of();
@@ -40,10 +44,16 @@ final class CGenerator {
     String generate(Program program) {
         out.append("#include <stdint.h>\n");
         out.append("#include <stdbool.h>\n");
-        out.append("#include <stdio.h>\n\n");
+        out.append("#include <stdio.h>\n");
+        out.append("#include <stdlib.h>\n\n");
         out.append("static void console_write(const char* text) { printf(\"%s\", text); }\n\n");
 
         indexFields(program);
+        collectArrayTypes(program);
+
+        for (String arrayType : arrayTypes) {
+            emitArrayStruct(arrayType);
+        }
 
         for (TypeDecl type : program.types()) {
             emitStruct(type);
@@ -91,6 +101,84 @@ final class CGenerator {
             }
             fieldsByType.put(type.name(), fields);
         }
+    }
+
+    private void collectArrayTypes(Program program) {
+        for (TypeDecl type : program.types()) {
+            for (Member member : type.members()) {
+                if (member instanceof FieldDecl field) {
+                    collectArrayType(field.type());
+                } else if (member instanceof MethodDecl method) {
+                    collectArrayType(method.returnType());
+                    method.params().forEach(param -> collectArrayType(param.type()));
+                    method.body().forEach(this::collectArrayTypes);
+                }
+            }
+        }
+    }
+
+    private void collectArrayTypes(Stmt stmt) {
+        if (stmt == null) {
+            return;
+        }
+        if (stmt instanceof VarDecl varDecl) {
+            collectArrayType(varDecl.type());
+            collectArrayTypes(varDecl.initializer());
+        } else if (stmt instanceof ExprStmt exprStmt) {
+            collectArrayTypes(exprStmt.expr());
+        } else if (stmt instanceof ReturnStmt returnStmt) {
+            collectArrayTypes(returnStmt.value());
+        } else if (stmt instanceof IfStmt ifStmt) {
+            collectArrayTypes(ifStmt.condition());
+            ifStmt.thenBranch().forEach(this::collectArrayTypes);
+            ifStmt.elseBranch().forEach(this::collectArrayTypes);
+        } else if (stmt instanceof WhileStmt whileStmt) {
+            collectArrayTypes(whileStmt.condition());
+            whileStmt.body().forEach(this::collectArrayTypes);
+        } else if (stmt instanceof ForStmt forStmt) {
+            collectArrayTypes(forStmt.initializer());
+            collectArrayTypes(forStmt.condition());
+            collectArrayTypes(forStmt.increment());
+            forStmt.body().forEach(this::collectArrayTypes);
+        }
+    }
+
+    private void collectArrayTypes(Expr expr) {
+        if (expr == null) {
+            return;
+        }
+        if (expr instanceof ArrayNew arrayNew) {
+            collectArrayType(arrayNew.elementType() + "[]");
+            collectArrayTypes(arrayNew.size());
+        } else if (expr instanceof Assign assign) {
+            collectArrayTypes(assign.target());
+            collectArrayTypes(assign.value());
+        } else if (expr instanceof Binary binary) {
+            collectArrayTypes(binary.left());
+            collectArrayTypes(binary.right());
+        } else if (expr instanceof Call call) {
+            collectArrayTypes(call.callee());
+            call.args().forEach(this::collectArrayTypes);
+        } else if (expr instanceof Get get) {
+            collectArrayTypes(get.object());
+        } else if (expr instanceof Index index) {
+            collectArrayTypes(index.object());
+            collectArrayTypes(index.index());
+        }
+    }
+
+    private void collectArrayType(String type) {
+        if (isArrayType(type)) {
+            arrayTypes.add(type);
+        }
+    }
+
+    private void emitArrayStruct(String arrayType) {
+        String elementType = arrayElementType(arrayType);
+        out.append("typedef struct ").append(cArrayName(arrayType)).append(" {\n");
+        out.append("    int32_t length;\n");
+        out.append("    ").append(cType(elementType)).append("* data;\n");
+        out.append("} ").append(cArrayName(arrayType)).append(";\n\n");
     }
 
     private void emitStruct(TypeDecl type) {
@@ -180,7 +268,9 @@ final class CGenerator {
         locals.add(varDecl.name());
         localTypes.put(varDecl.name(), varDecl.type());
 
-        if (isKiteObject(varDecl.type())) {
+        if (isArrayType(varDecl.type())) {
+            emitArrayVarDecl(varDecl);
+        } else if (isKiteObject(varDecl.type())) {
             if (isInitializerCall(varDecl)) {
                 line(cStructName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
                 line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
@@ -207,6 +297,19 @@ final class CGenerator {
                 out.append(" = ").append(expr(varDecl.initializer()));
             }
             out.append(";\n");
+        }
+    }
+
+    private void emitArrayVarDecl(VarDecl varDecl) {
+        line(cArrayName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
+        line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
+        if (varDecl.initializer() instanceof ArrayNew arrayNew) {
+            String size = expr(arrayNew.size());
+            String elementType = arrayElementType(varDecl.type());
+            line(varDecl.name() + "->length = " + size + ";");
+            line(varDecl.name() + "->data = calloc(" + size + ", sizeof(" + cType(elementType) + "));");
+        } else if (varDecl.initializer() != null) {
+            line(varDecl.name() + " = " + expr(varDecl.initializer()) + ";");
         }
     }
 
@@ -264,6 +367,9 @@ final class CGenerator {
         if (expr instanceof Literal literal) {
             return literal.value();
         }
+        if (expr instanceof ArrayNew) {
+            throw new IllegalStateException("Array creation is only supported in variable initializers");
+        }
         if (expr instanceof Variable variable) {
             if (currentFields.contains(variable.name()) && !locals.contains(variable.name())) {
                 return "self->" + variable.name();
@@ -274,10 +380,16 @@ final class CGenerator {
             if (get.object() instanceof Variable variable && variable.name().equals("console") && get.name().equals("write")) {
                 return "console_write";
             }
+            if (get.name().equals("length") && isArrayExpr(get.object())) {
+                return expr(get.object()) + "->length";
+            }
             if (get.object() instanceof Variable variable && isKiteObject(localTypes.get(variable.name()))) {
                 return expr(get.object()) + "->" + get.name();
             }
             return expr(get.object()) + "." + get.name();
+        }
+        if (expr instanceof Index index) {
+            return expr(index.object()) + "->data[" + expr(index.index()) + "]";
         }
         if (expr instanceof Call call) {
             if (call.callee() instanceof Get get && get.object() instanceof Variable variable) {
@@ -302,6 +414,9 @@ final class CGenerator {
     }
 
     private String cType(String kiteType) {
+        if (isArrayType(kiteType)) {
+            return cArrayName(kiteType) + "*";
+        }
         if (kiteType.startsWith("pointer ")) {
             return cPointerType(kiteType.substring("pointer ".length()));
         }
@@ -341,5 +456,25 @@ final class CGenerator {
 
     private String storageName(String variableName) {
         return "_" + variableName + "_storage";
+    }
+
+    private boolean isArrayType(String kiteType) {
+        return kiteType != null && kiteType.endsWith("[]");
+    }
+
+    private String arrayElementType(String arrayType) {
+        return arrayType.substring(0, arrayType.length() - 2);
+    }
+
+    private String cArrayName(String arrayType) {
+        return "kite_array_" + mangleType(arrayElementType(arrayType));
+    }
+
+    private String mangleType(String kiteType) {
+        return kiteType.replace("pointer ", "pointer_").replace("[]", "_array");
+    }
+
+    private boolean isArrayExpr(Expr expr) {
+        return expr instanceof Variable variable && isArrayType(localTypes.get(variable.name()));
     }
 }

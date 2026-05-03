@@ -21,6 +21,7 @@ final class CompilerTest {
                 #include <stdint.h>
                 #include <stdbool.h>
                 #include <stdio.h>
+                #include <stdlib.h>
 
                 static void console_write(const char* text) { printf("%s", text); }
 
@@ -111,6 +112,21 @@ final class CompilerTest {
         assertTrue(c.contains("node_init(a, 10);"));
         assertTrue(c.contains("kite_node* b = a;"));
         assertTrue(c.contains("b->value = 20;"));
+    }
+
+    @Test
+    void compilesArrays() throws IOException {
+        String c = compileExample("arrays.kite");
+
+        assertTrue(c.contains("typedef struct kite_array_int {"));
+        assertTrue(c.contains("int32_t length;"));
+        assertTrue(c.contains("int32_t* data;"));
+        assertTrue(c.contains("kite_array_int _numbers_storage;"));
+        assertTrue(c.contains("kite_array_int* numbers = &_numbers_storage;"));
+        assertTrue(c.contains("numbers->length = 3;"));
+        assertTrue(c.contains("numbers->data = calloc(3, sizeof(int32_t));"));
+        assertTrue(c.contains("numbers->data[0] = 5;"));
+        assertTrue(c.contains("if (numbers->length == 3) {"));
     }
 
     private String compileExample(String fileName) throws IOException {

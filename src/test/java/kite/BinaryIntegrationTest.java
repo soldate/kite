@@ -38,6 +38,11 @@ final class BinaryIntegrationTest {
     }
 
     @Test
+    void arraysExampleRuns() throws IOException, InterruptedException {
+        assertExampleOutput("arrays.kite", "arrays");
+    }
+
+    @Test
     void objectReferenceExampleCompilesAndRuns() throws IOException, InterruptedException {
         assertExampleOutput("references.kite", "");
     }

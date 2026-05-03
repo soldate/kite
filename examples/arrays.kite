@@ -1,0 +1,12 @@
+type main {
+    void main() {
+        int[] numbers = array int(3);
+
+        numbers[0] = 5;
+        numbers[1] = numbers[0] + 2;
+
+        if (numbers.length == 3) {
+            console.write("arrays");
+        }
+    }
+}

@@ -22,6 +22,7 @@ final class Lexer {
         KEYWORDS.put("bool", TokenType.BOOL);
         KEYWORDS.put("string", TokenType.STRING_TYPE);
         KEYWORDS.put("pointer", TokenType.POINTER);
+        KEYWORDS.put("array", TokenType.ARRAY);
         KEYWORDS.put("true", TokenType.TRUE);
         KEYWORDS.put("false", TokenType.FALSE);
         KEYWORDS.put("return", TokenType.RETURN);
@@ -61,6 +62,8 @@ final class Lexer {
             case ')' -> add(TokenType.RIGHT_PAREN);
             case '{' -> add(TokenType.LEFT_BRACE);
             case '}' -> add(TokenType.RIGHT_BRACE);
+            case '[' -> add(TokenType.LEFT_BRACKET);
+            case ']' -> add(TokenType.RIGHT_BRACKET);
             case ';' -> add(TokenType.SEMICOLON);
             case ',' -> add(TokenType.COMMA);
             case '.' -> add(TokenType.DOT);
