@@ -72,6 +72,18 @@
             "args": "${workspaceFolder}/examples/pointers.kite",
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "build kitec"
+        },
+        {
+            "name": "Debug kitec: references.kite",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "kite.Main",
+            "classPaths": [
+                "${workspaceFolder}/target/classes"
+            ],
+            "args": "${workspaceFolder}/examples/references.kite",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "build kitec"
         }
     ]
 }

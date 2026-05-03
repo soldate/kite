@@ -1,0 +1,16 @@
+type node {
+    int value;
+
+    void init(int v) {
+        value = v;
+    }
+}
+
+type main {
+    void main() {
+        node a = node(10);
+        node b = a;
+
+        b.value = 20;
+    }
+}

@@ -180,7 +180,21 @@ final class CGenerator {
         locals.add(varDecl.name());
         localTypes.put(varDecl.name(), varDecl.type());
 
-        if (isInitializerCall(varDecl)) {
+        if (isKiteObject(varDecl.type())) {
+            if (isInitializerCall(varDecl)) {
+                line(cStructName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
+                line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
+                Call initCall = (Call) varDecl.initializer();
+                String args = initCall.args().stream().map(this::expr).collect(Collectors.joining(", "));
+                String allArgs = args.isEmpty() ? varDecl.name() : varDecl.name() + ", " + args;
+                line(varDecl.type() + "_init(" + allArgs + ");");
+            } else if (varDecl.initializer() != null) {
+                line(cType(varDecl.type()) + " " + varDecl.name() + " = " + expr(varDecl.initializer()) + ";");
+            } else {
+                line(cStructName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
+                line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
+            }
+        } else if (isInitializerCall(varDecl)) {
             line(cType(varDecl.type()) + " " + varDecl.name() + ";");
             Call initCall = (Call) varDecl.initializer();
             String args = initCall.args().stream().map(this::expr).collect(Collectors.joining(", "));
@@ -260,6 +274,9 @@ final class CGenerator {
             if (get.object() instanceof Variable variable && variable.name().equals("console") && get.name().equals("write")) {
                 return "console_write";
             }
+            if (get.object() instanceof Variable variable && isKiteObject(localTypes.get(variable.name()))) {
+                return expr(get.object()) + "->" + get.name();
+            }
             return expr(get.object()) + "." + get.name();
         }
         if (expr instanceof Call call) {
@@ -267,7 +284,7 @@ final class CGenerator {
                 String objectType = localTypes.get(variable.name());
                 if (objectType != null && typeNames.contains(objectType)) {
                     String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
-                    String selfArg = "&" + variable.name();
+                    String selfArg = variable.name();
                     String allArgs = args.isEmpty() ? selfArg : selfArg + ", " + args;
                     return objectType + "_" + get.name() + "(" + allArgs + ")";
                 }
@@ -287,6 +304,9 @@ final class CGenerator {
     private String cType(String kiteType) {
         if (kiteType.startsWith("pointer ")) {
             return cPointerType(kiteType.substring("pointer ".length()));
+        }
+        if (isKiteObject(kiteType)) {
+            return cStructName(kiteType) + "*";
         }
         return switch (kiteType) {
             case "void" -> "void";
@@ -313,5 +333,13 @@ final class CGenerator {
 
     private String cStructName(String kiteType) {
         return "kite_" + kiteType;
+    }
+
+    private boolean isKiteObject(String kiteType) {
+        return typeNames.contains(kiteType);
+    }
+
+    private String storageName(String variableName) {
+        return "_" + variableName + "_storage";
     }
 }

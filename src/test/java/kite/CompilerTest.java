@@ -77,8 +77,9 @@ final class CompilerTest {
         String c = compileExample("methods.kite");
 
         assertTrue(c.contains("void node_init(kite_node* self, int32_t v);"));
-        assertTrue(c.contains("kite_node n;"));
-        assertTrue(c.contains("node_init(&n, 10);"));
+        assertTrue(c.contains("kite_node _n_storage;"));
+        assertTrue(c.contains("kite_node* n = &_n_storage;"));
+        assertTrue(c.contains("node_init(n, 10);"));
         assertFalse(c.contains("= node(10)"));
     }
 
@@ -99,6 +100,17 @@ final class CompilerTest {
         assertTrue(c.contains("int32_t* p = 0;"));
         assertTrue(c.contains("self->next = 0;"));
         assertTrue(c.contains("p = p + 1;"));
+    }
+
+    @Test
+    void compilesObjectsAsReferences() throws IOException {
+        String c = compileExample("references.kite");
+
+        assertTrue(c.contains("kite_node _a_storage;"));
+        assertTrue(c.contains("kite_node* a = &_a_storage;"));
+        assertTrue(c.contains("node_init(a, 10);"));
+        assertTrue(c.contains("kite_node* b = a;"));
+        assertTrue(c.contains("b->value = 20;"));
     }
 
     private String compileExample(String fileName) throws IOException {
