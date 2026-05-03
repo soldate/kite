@@ -271,7 +271,17 @@ final class CGenerator {
         if (isArrayType(varDecl.type())) {
             emitArrayVarDecl(varDecl);
         } else if (isKiteObject(varDecl.type())) {
-            if (isInitializerCall(varDecl)) {
+            if (varDecl.heap()) {
+                line(cType(varDecl.type()) + " " + varDecl.name() + " = malloc(sizeof(" + cStructName(varDecl.type()) + "));");
+                if (isInitializerCall(varDecl)) {
+                    Call initCall = (Call) varDecl.initializer();
+                    String args = initCall.args().stream().map(this::expr).collect(Collectors.joining(", "));
+                    String allArgs = args.isEmpty() ? varDecl.name() : varDecl.name() + ", " + args;
+                    line(varDecl.type() + "_init(" + allArgs + ");");
+                } else if (varDecl.initializer() != null) {
+                    line(varDecl.name() + " = " + expr(varDecl.initializer()) + ";");
+                }
+            } else if (isInitializerCall(varDecl)) {
                 line(cStructName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
                 line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
                 Call initCall = (Call) varDecl.initializer();

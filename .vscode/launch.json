@@ -96,6 +96,18 @@
             "args": "${workspaceFolder}/examples/arrays.kite",
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "build kitec"
+        },
+        {
+            "name": "Debug kitec: heap.kite",
+            "type": "java",
+            "request": "launch",
+            "mainClass": "kite.Main",
+            "classPaths": [
+                "${workspaceFolder}/target/classes"
+            ],
+            "args": "${workspaceFolder}/examples/heap.kite",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "build kitec"
         }
     ]
 }

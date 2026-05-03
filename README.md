@@ -376,6 +376,7 @@ Supported language subset:
 - C function prototypes, so method calls do not depend on source type order
 - `pointer T` types, including pointers to primitive and Kite-defined types
 - Kite-defined object variables are references; local non-escaping objects currently lower to stack storage plus a pointer reference
+- explicit heap object declarations with `heap T name`
 - basic arrays: `T[]`, `array T(n)`, indexing with `a[i]`, and `a.length`
 
 Examples live in `examples/`:
@@ -391,6 +392,7 @@ examples/order.kite
 examples/pointers.kite
 examples/references.kite
 examples/arrays.kite
+examples/heap.kite
 ```
 
 Build the compiler:

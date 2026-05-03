@@ -115,6 +115,16 @@ final class CompilerTest {
     }
 
     @Test
+    void compilesExplicitHeapObjects() throws IOException {
+        String c = compileExample("heap.kite");
+
+        assertTrue(c.contains("kite_node* n = malloc(sizeof(kite_node));"));
+        assertTrue(c.contains("node_init(n, 10);"));
+        assertTrue(c.contains("n->value = 20;"));
+        assertFalse(c.contains("_n_storage"));
+    }
+
+    @Test
     void compilesArrays() throws IOException {
         String c = compileExample("arrays.kite");
 

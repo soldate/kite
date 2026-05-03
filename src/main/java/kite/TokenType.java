@@ -20,6 +20,7 @@ enum TokenType {
     STRING_TYPE,
     POINTER,
     ARRAY,
+    HEAP,
     TRUE,
     FALSE,
     RETURN,

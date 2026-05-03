@@ -52,6 +52,11 @@ final class BinaryIntegrationTest {
         assertExampleOutput("pointers.kite", "");
     }
 
+    @Test
+    void heapExampleCompilesAndRuns() throws IOException, InterruptedException {
+        assertExampleOutput("heap.kite", "");
+    }
+
     private void assertExampleOutput(String fileName, String expectedOutput) throws IOException, InterruptedException {
         Path cFile = tempDir.resolve(fileName.replace(".kite", ".c"));
         Path binary = tempDir.resolve(fileName.replace(".kite", ""));

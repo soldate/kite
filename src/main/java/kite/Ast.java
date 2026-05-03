@@ -24,7 +24,7 @@ final class Ast {
     sealed interface Stmt permits VarDecl, ExprStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt {
     }
 
-    record VarDecl(String type, String name, Expr initializer) implements Stmt {
+    record VarDecl(String type, String name, Expr initializer, boolean heap) implements Stmt {
     }
 
     record ExprStmt(Expr expr) implements Stmt {

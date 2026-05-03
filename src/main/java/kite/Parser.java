@@ -146,6 +146,7 @@ final class Parser {
     }
 
     private VarDecl varDecl() {
+        boolean heap = match(TokenType.HEAP);
         String type = parseType();
         String name = consume(TokenType.IDENTIFIER, "Expected variable name").lexeme();
         Expr initializer = null;
@@ -153,7 +154,7 @@ final class Parser {
             initializer = expression();
         }
         consume(TokenType.SEMICOLON, "Expected ';' after variable declaration");
-        return new VarDecl(type, name, initializer);
+        return new VarDecl(type, name, initializer, heap);
     }
 
     private List<Stmt> block(String openMessage, String closeMessage) {
@@ -293,6 +294,9 @@ final class Parser {
     }
 
     private boolean isVarDeclStart() {
+        if (check(TokenType.HEAP)) {
+            return true;
+        }
         if (check(TokenType.POINTER)) {
             return true;
         }
