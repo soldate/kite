@@ -285,6 +285,9 @@ final class CGenerator {
     }
 
     private String cType(String kiteType) {
+        if (kiteType.startsWith("pointer ")) {
+            return cPointerType(kiteType.substring("pointer ".length()));
+        }
         return switch (kiteType) {
             case "void" -> "void";
             case "int" -> "int32_t";
@@ -299,6 +302,13 @@ final class CGenerator {
             case "string" -> "const char*";
             default -> cStructName(kiteType);
         };
+    }
+
+    private String cPointerType(String kiteType) {
+        if (typeNames.contains(kiteType)) {
+            return "struct " + cStructName(kiteType) + "*";
+        }
+        return cType(kiteType) + "*";
     }
 
     private String cStructName(String kiteType) {

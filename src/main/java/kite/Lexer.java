@@ -21,6 +21,7 @@ final class Lexer {
         KEYWORDS.put("char", TokenType.CHAR);
         KEYWORDS.put("bool", TokenType.BOOL);
         KEYWORDS.put("string", TokenType.STRING_TYPE);
+        KEYWORDS.put("pointer", TokenType.POINTER);
         KEYWORDS.put("true", TokenType.TRUE);
         KEYWORDS.put("false", TokenType.FALSE);
         KEYWORDS.put("return", TokenType.RETURN);

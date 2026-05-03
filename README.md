@@ -362,6 +362,7 @@ Supported language subset:
 - object method calls for local variables, such as `n.init(10)`
 - local initialization syntax, such as `node n = node(10)`, lowered to `node n; n.init(10);`
 - C function prototypes, so method calls do not depend on source type order
+- `pointer T` types, including pointers to primitive and Kite-defined types
 
 Examples live in `examples/`:
 
@@ -373,6 +374,7 @@ examples/for.kite
 examples/types.kite
 examples/methods.kite
 examples/order.kite
+examples/pointers.kite
 ```
 
 Build the compiler:

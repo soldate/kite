@@ -1,0 +1,18 @@
+type node {
+    int value;
+    pointer node next;
+
+    void init(int v) {
+        value = v;
+        next = 0;
+    }
+}
+
+type main {
+    void main() {
+        pointer int p = 0;
+        node n = node(10);
+
+        p = p + 1;
+    }
+}

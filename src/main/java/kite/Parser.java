@@ -101,7 +101,7 @@ final class Parser {
             Stmt initializer = null;
             if (match(TokenType.SEMICOLON)) {
                 initializer = null;
-            } else if (isTypeStart(peek().type()) && checkNext(TokenType.IDENTIFIER)) {
+            } else if (isVarDeclStart()) {
                 initializer = varDecl();
             } else {
                 Expr expr = expression();
@@ -134,7 +134,7 @@ final class Parser {
             return new ReturnStmt(value);
         }
 
-        if (isTypeStart(peek().type()) && checkNext(TokenType.IDENTIFIER)) {
+        if (isVarDeclStart()) {
             return varDecl();
         }
 
@@ -255,6 +255,9 @@ final class Parser {
     }
 
     private String parseType() {
+        if (match(TokenType.POINTER)) {
+            return "pointer " + parseType();
+        }
         if (match(TokenType.VOID, TokenType.INT, TokenType.UINT, TokenType.LONG, TokenType.ULONG,
                 TokenType.FLOAT, TokenType.DOUBLE, TokenType.BYTE, TokenType.CHAR, TokenType.BOOL,
                 TokenType.STRING_TYPE, TokenType.IDENTIFIER)) {
@@ -267,7 +270,14 @@ final class Parser {
         return type == TokenType.VOID || type == TokenType.INT || type == TokenType.UINT || type == TokenType.LONG
                 || type == TokenType.ULONG || type == TokenType.FLOAT || type == TokenType.DOUBLE
                 || type == TokenType.BYTE || type == TokenType.CHAR || type == TokenType.BOOL
-                || type == TokenType.STRING_TYPE || type == TokenType.IDENTIFIER;
+                || type == TokenType.STRING_TYPE || type == TokenType.POINTER || type == TokenType.IDENTIFIER;
+    }
+
+    private boolean isVarDeclStart() {
+        if (check(TokenType.POINTER)) {
+            return true;
+        }
+        return isTypeStart(peek().type()) && checkNext(TokenType.IDENTIFIER);
     }
 
     private boolean match(TokenType... types) {

@@ -91,6 +91,16 @@ final class CompilerTest {
         assertTrue(c.indexOf("int main(void)") < c.indexOf("void node_init(kite_node* self, int32_t v) {"));
     }
 
+    @Test
+    void compilesPointerTypes() throws IOException {
+        String c = compileExample("pointers.kite");
+
+        assertTrue(c.contains("struct kite_node* next;"));
+        assertTrue(c.contains("int32_t* p = 0;"));
+        assertTrue(c.contains("self->next = 0;"));
+        assertTrue(c.contains("p = p + 1;"));
+    }
+
     private String compileExample(String fileName) throws IOException {
         String source = Files.readString(Path.of("examples", fileName));
         return compiler.compile(source);

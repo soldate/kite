@@ -18,6 +18,7 @@ enum TokenType {
     CHAR,
     BOOL,
     STRING_TYPE,
+    POINTER,
     TRUE,
     FALSE,
     RETURN,
