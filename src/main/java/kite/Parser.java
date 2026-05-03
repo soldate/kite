@@ -277,6 +277,9 @@ final class Parser {
 
     private String parseType() {
         if (match(TokenType.POINTER)) {
+            if (isBarePointer()) {
+                return "pointer";
+            }
             return "pointer " + parseType();
         }
         String type;
@@ -317,6 +320,13 @@ final class Parser {
                 && tokens.get(current + 1).type() == TokenType.LEFT_BRACKET
                 && tokens.get(current + 2).type() == TokenType.RIGHT_BRACKET
                 && tokens.get(current + 3).type() == TokenType.IDENTIFIER;
+    }
+
+    private boolean isBarePointer() {
+        if (check(TokenType.IDENTIFIER)) {
+            return current + 1 >= tokens.size() || tokens.get(current + 1).type() != TokenType.IDENTIFIER;
+        }
+        return false;
     }
 
     private boolean match(TokenType... types) {

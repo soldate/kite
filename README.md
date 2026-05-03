@@ -396,6 +396,7 @@ Supported language subset:
 - Kite-defined object variables are references; local non-escaping objects currently lower to stack storage plus a pointer reference
 - explicit heap object declarations with `heap T name`
 - runtime `kite_on_heap(size)` helper for heap object allocation; currently backed by `malloc`
+- `type main` may define `pointer on_heap(int size)` to override program-object heap allocation
 - `delete expr;` lowers to explicit memory release for heap/manual pointers
 - basic arrays: `T[]`, `array T(n)`, indexing with `a[i]`, and `a.length`
 
@@ -413,6 +414,7 @@ examples/pointers.kite
 examples/references.kite
 examples/arrays.kite
 examples/heap.kite
+examples/owner.kite
 ```
 
 Build the compiler:

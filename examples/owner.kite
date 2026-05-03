@@ -1,0 +1,19 @@
+type main {
+    pointer on_heap(int size) {
+        return bootstrap_alloc(size);
+    }
+
+    void main() {
+        heap node n = node(10);
+
+        delete n;
+    }
+}
+
+type node {
+    int value;
+
+    void init(int v) {
+        value = v;
+    }
+}

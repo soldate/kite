@@ -48,7 +48,7 @@ final class CGenerator {
         out.append("#include <stdio.h>\n");
         out.append("#include <stdlib.h>\n\n");
         out.append("static void console_write(const char* text) { printf(\"%s\", text); }\n\n");
-        out.append("static void* kite_on_heap(size_t size) { return malloc(size); }\n\n");
+        out.append("static void* bootstrap_alloc(int32_t size) { return malloc(size); }\n\n");
 
         indexFields(program);
         collectArrayTypes(program);
@@ -67,6 +67,8 @@ final class CGenerator {
             out.append("\n");
         }
 
+        emitHeapHook(program);
+
         for (TypeDecl type : program.types()) {
             currentFields = fieldsByType.getOrDefault(type.name(), Set.of());
             for (Member member : type.members()) {
@@ -78,6 +80,29 @@ final class CGenerator {
         }
 
         return out.toString();
+    }
+
+    private void emitHeapHook(Program program) {
+        if (hasMainOnHeap(program)) {
+            out.append("static kite_main kite_owner;\n");
+            out.append("static void* kite_on_heap(size_t size) { return main_on_heap(&kite_owner, (int32_t)size); }\n\n");
+        } else {
+            out.append("static void* kite_on_heap(size_t size) { return bootstrap_alloc((int32_t)size); }\n\n");
+        }
+    }
+
+    private boolean hasMainOnHeap(Program program) {
+        for (TypeDecl type : program.types()) {
+            if (!type.name().equals("main")) {
+                continue;
+            }
+            for (Member member : type.members()) {
+                if (member instanceof MethodDecl method && method.name().equals("on_heap")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private List<String> methodPrototypes(Program program) {
@@ -435,6 +460,9 @@ final class CGenerator {
         }
         if (kiteType.startsWith("pointer ")) {
             return cPointerType(kiteType.substring("pointer ".length()));
+        }
+        if (kiteType.equals("pointer")) {
+            return "void*";
         }
         if (isKiteObject(kiteType)) {
             return cStructName(kiteType) + "*";

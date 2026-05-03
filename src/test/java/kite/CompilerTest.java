@@ -25,10 +25,12 @@ final class CompilerTest {
 
                 static void console_write(const char* text) { printf("%s", text); }
 
-                static void* kite_on_heap(size_t size) { return malloc(size); }
+                static void* bootstrap_alloc(int32_t size) { return malloc(size); }
 
                 typedef struct kite_main {
                 } kite_main;
+
+                static void* kite_on_heap(size_t size) { return bootstrap_alloc((int32_t)size); }
 
                 int main(void) {
                     console_write("hello");
@@ -120,12 +122,24 @@ final class CompilerTest {
     void compilesExplicitHeapObjects() throws IOException {
         String c = compileExample("heap.kite");
 
-        assertTrue(c.contains("static void* kite_on_heap(size_t size) { return malloc(size); }"));
+        assertTrue(c.contains("static void* kite_on_heap(size_t size) { return bootstrap_alloc((int32_t)size); }"));
         assertTrue(c.contains("kite_node* n = kite_on_heap(sizeof(kite_node));"));
         assertTrue(c.contains("node_init(n, 10);"));
         assertTrue(c.contains("n->value = 20;"));
         assertTrue(c.contains("free(n);"));
         assertFalse(c.contains("_n_storage"));
+    }
+
+    @Test
+    void compilesMainOnHeapHook() throws IOException {
+        String c = compileExample("owner.kite");
+
+        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size);"));
+        assertTrue(c.contains("static kite_main kite_owner;"));
+        assertTrue(c.contains("static void* kite_on_heap(size_t size) { return main_on_heap(&kite_owner, (int32_t)size); }"));
+        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size) {"));
+        assertTrue(c.contains("return bootstrap_alloc(size);"));
+        assertTrue(c.contains("kite_node* n = kite_on_heap(sizeof(kite_node));"));
     }
 
     @Test
