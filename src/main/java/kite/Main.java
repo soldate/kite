@@ -3,7 +3,6 @@ package kite;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 public final class Main {
     private Main() {
@@ -17,10 +16,7 @@ public final class Main {
 
         try {
             String source = Files.readString(Path.of(args[0]));
-            List<Token> tokens = new Lexer(source).scanTokens();
-            Ast.Program program = new Parser(tokens).parse();
-            String c = new CGenerator().generate(program);
-            System.out.print(c);
+            System.out.print(new Compiler().compile(source));
         } catch (KiteException e) {
             System.err.println(e.getMessage());
             System.exit(65);

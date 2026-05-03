@@ -376,6 +376,8 @@ Build the compiler:
 mvn compile
 ```
 
+The repository includes `.mvn/settings.xml` and `.mvn/maven.config` so Maven uses Maven Central for project dependencies even if the machine has a private global Maven mirror configured.
+
 or:
 
 ```bash
@@ -437,3 +439,9 @@ Recommended for VS Code:
 - Extension Pack for Java
 - C/C++ extension
 - the local Kite syntax extension from `tools/vscode-kite`
+
+Run tests:
+
+```bash
+mvn test
+```

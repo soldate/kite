@@ -6,6 +6,8 @@
             "type": "shell",
             "command": "mvn",
             "args": [
+                "--settings",
+                ".mvn/settings.xml",
                 "compile"
             ],
             "group": {
