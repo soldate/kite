@@ -1,0 +1,13 @@
+type main {
+    void main() {
+        node n = node(10);
+    }
+}
+
+type node {
+    int value;
+
+    void init(int v) {
+        value = v;
+    }
+}

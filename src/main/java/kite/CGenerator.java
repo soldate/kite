@@ -49,6 +49,12 @@ final class CGenerator {
             emitStruct(type);
         }
 
+        List<String> prototypes = methodPrototypes(program);
+        if (!prototypes.isEmpty()) {
+            prototypes.forEach(prototype -> out.append(prototype).append(";\n"));
+            out.append("\n");
+        }
+
         for (TypeDecl type : program.types()) {
             currentFields = fieldsByType.getOrDefault(type.name(), Set.of());
             for (Member member : type.members()) {
@@ -60,6 +66,18 @@ final class CGenerator {
         }
 
         return out.toString();
+    }
+
+    private List<String> methodPrototypes(Program program) {
+        List<String> prototypes = new ArrayList<>();
+        for (TypeDecl type : program.types()) {
+            for (Member member : type.members()) {
+                if (member instanceof MethodDecl method && !isEntrypoint(type, method)) {
+                    prototypes.add(methodSignature(type, method));
+                }
+            }
+        }
+        return prototypes;
     }
 
     private void indexFields(Program program) {
@@ -86,7 +104,7 @@ final class CGenerator {
     }
 
     private void emitMethod(TypeDecl type, MethodDecl method) {
-        boolean isEntrypoint = type.name().equals("main") && method.name().equals("main") && method.params().isEmpty();
+        boolean isEntrypoint = isEntrypoint(type, method);
         locals = new HashSet<>();
         localTypes = new HashMap<>();
         method.params().forEach(param -> {
@@ -94,19 +112,7 @@ final class CGenerator {
             localTypes.put(param.name(), param.type());
         });
 
-        if (isEntrypoint) {
-            out.append("int main(void)");
-        } else {
-            out.append(cType(method.returnType())).append(" ");
-            out.append(type.name()).append("_").append(method.name()).append("(");
-            List<String> params = new ArrayList<>();
-            params.add(cStructName(type.name()) + "* self");
-            params.addAll(method.params().stream()
-                    .map(param -> cType(param.type()) + " " + param.name())
-                    .toList());
-            out.append(String.join(", ", params));
-            out.append(")");
-        }
+        out.append(isEntrypoint ? "int main(void)" : methodSignature(type, method));
 
         out.append(" {\n");
         indentLevel++;
@@ -120,6 +126,20 @@ final class CGenerator {
         out.append("}\n\n");
         locals = Set.of();
         localTypes = Map.of();
+    }
+
+    private boolean isEntrypoint(TypeDecl type, MethodDecl method) {
+        return type.name().equals("main") && method.name().equals("main") && method.params().isEmpty();
+    }
+
+    private String methodSignature(TypeDecl type, MethodDecl method) {
+        List<String> params = new ArrayList<>();
+        params.add(cStructName(type.name()) + "* self");
+        params.addAll(method.params().stream()
+                .map(param -> cType(param.type()) + " " + param.name())
+                .toList());
+        return cType(method.returnType()) + " " + type.name() + "_" + method.name() + "("
+                + String.join(", ", params) + ")";
     }
 
     private void emitStmt(Stmt stmt) {

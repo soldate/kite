@@ -76,9 +76,19 @@ final class CompilerTest {
     void compilesObjectMethodCalls() throws IOException {
         String c = compileExample("methods.kite");
 
+        assertTrue(c.contains("void node_init(kite_node* self, int32_t v);"));
         assertTrue(c.contains("kite_node n;"));
         assertTrue(c.contains("node_init(&n, 10);"));
         assertFalse(c.contains("= node(10)"));
+    }
+
+    @Test
+    void emitsFunctionPrototypesSoTypeOrderDoesNotMatter() throws IOException {
+        String c = compileExample("order.kite");
+
+        assertTrue(c.indexOf("void node_init(kite_node* self, int32_t v);")
+                < c.indexOf("int main(void)"));
+        assertTrue(c.indexOf("int main(void)") < c.indexOf("void node_init(kite_node* self, int32_t v) {"));
     }
 
     private String compileExample(String fileName) throws IOException {

@@ -361,6 +361,7 @@ Supported language subset:
 - implicit `self` access for fields inside methods
 - object method calls for local variables, such as `n.init(10)`
 - local initialization syntax, such as `node n = node(10)`, lowered to `node n; n.init(10);`
+- C function prototypes, so method calls do not depend on source type order
 
 Examples live in `examples/`:
 
@@ -371,6 +372,7 @@ examples/control.kite
 examples/for.kite
 examples/types.kite
 examples/methods.kite
+examples/order.kite
 ```
 
 Build the compiler:
