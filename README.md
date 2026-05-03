@@ -211,6 +211,24 @@ Rule:
 - bootstrap allocation must not call `on_heap`
 - if `on_heap` records an object for owner cleanup, regular program code must not also `delete` that same object
 
+Future direction: `on_heap` should receive type metadata so the owner can route allocations by object type:
+
+```c
+pointer on_heap(int size, int type) {
+    pointer p = allocator.alloc(size);
+
+    if (type == myclass.id) {
+        heap_objects_1.add(p);
+    } else {
+        heap_objects_2.add(p);
+    }
+
+    return p;
+}
+```
+
+The compiler should generate stable type ids for Kite-defined types. This keeps `pointer` raw while still giving the owner enough information to organize heap allocations.
+
 ---
 
 ## Errors
@@ -244,10 +262,28 @@ byte[] buffer;
 ## Arrays
 
 ```c
-int[] numbers = array int(10);
+int[] values = [1, 2, 3];
+int[3] numbers;
 
 numbers[0] = 5;
 console.write(numbers.length);
+```
+
+Arrays are stack storage. The length is known by the compiler and available with `.length`.
+
+Object arrays must be explicit about stack storage:
+
+```c
+node[3] nodes;        // error
+stack node[3] nodes;  // ok
+```
+
+This avoids confusing object arrays with heap containers. Heap collections should use `list` or another owner/container type.
+
+The old provisional form is not part of the intended language:
+
+```c
+int[] numbers = array int(3); // obsolete
 ```
 
 ---
@@ -420,7 +456,7 @@ Supported language subset:
 - `type main` may define `pointer on_heap(int size)` to override program-object heap allocation
 - `delete expr;` lowers to explicit memory release for heap/manual pointers
 - deleting a known `stack` object is rejected by the compiler
-- basic arrays: `T[]`, `array T(n)`, indexing with `a[i]`, and `a.length`
+- planned array syntax: `T[] name = [items]` and `T[n] name`, with indexing via `a[i]` and length via `a.length`
 
 Examples live in `examples/`:
 
