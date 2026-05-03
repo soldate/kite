@@ -7,6 +7,7 @@ import kite.Ast.Assign;
 import kite.Ast.ArrayNew;
 import kite.Ast.Binary;
 import kite.Ast.Call;
+import kite.Ast.DeleteStmt;
 import kite.Ast.Expr;
 import kite.Ast.ExprStmt;
 import kite.Ast.FieldDecl;
@@ -134,6 +135,12 @@ final class Parser {
             }
             consume(TokenType.SEMICOLON, "Expected ';' after return");
             return new ReturnStmt(value);
+        }
+
+        if (match(TokenType.DELETE)) {
+            Expr expr = expression();
+            consume(TokenType.SEMICOLON, "Expected ';' after delete");
+            return new DeleteStmt(expr);
         }
 
         if (isVarDeclStart()) {

@@ -13,6 +13,7 @@ import kite.Ast.Assign;
 import kite.Ast.ArrayNew;
 import kite.Ast.Binary;
 import kite.Ast.Call;
+import kite.Ast.DeleteStmt;
 import kite.Ast.Expr;
 import kite.Ast.ExprStmt;
 import kite.Ast.FieldDecl;
@@ -124,6 +125,8 @@ final class CGenerator {
         if (stmt instanceof VarDecl varDecl) {
             collectArrayType(varDecl.type());
             collectArrayTypes(varDecl.initializer());
+        } else if (stmt instanceof DeleteStmt deleteStmt) {
+            collectArrayTypes(deleteStmt.expr());
         } else if (stmt instanceof ExprStmt exprStmt) {
             collectArrayTypes(exprStmt.expr());
         } else if (stmt instanceof ReturnStmt returnStmt) {
@@ -233,6 +236,8 @@ final class CGenerator {
     private void emitStmt(Stmt stmt) {
         if (stmt instanceof VarDecl varDecl) {
             emitVarDecl(varDecl);
+        } else if (stmt instanceof DeleteStmt deleteStmt) {
+            line("free(" + expr(deleteStmt.expr()) + ");");
         } else if (stmt instanceof ExprStmt exprStmt) {
             line(expr(exprStmt.expr()) + ";");
         } else if (stmt instanceof ReturnStmt returnStmt) {

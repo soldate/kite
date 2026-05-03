@@ -377,6 +377,7 @@ Supported language subset:
 - `pointer T` types, including pointers to primitive and Kite-defined types
 - Kite-defined object variables are references; local non-escaping objects currently lower to stack storage plus a pointer reference
 - explicit heap object declarations with `heap T name`
+- `delete expr;` lowers to explicit memory release for heap/manual pointers
 - basic arrays: `T[]`, `array T(n)`, indexing with `a[i]`, and `a.length`
 
 Examples live in `examples/`:

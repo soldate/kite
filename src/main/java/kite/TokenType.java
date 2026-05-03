@@ -21,6 +21,7 @@ enum TokenType {
     POINTER,
     ARRAY,
     HEAP,
+    DELETE,
     TRUE,
     FALSE,
     RETURN,

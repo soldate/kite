@@ -24,6 +24,7 @@ final class Lexer {
         KEYWORDS.put("pointer", TokenType.POINTER);
         KEYWORDS.put("array", TokenType.ARRAY);
         KEYWORDS.put("heap", TokenType.HEAP);
+        KEYWORDS.put("delete", TokenType.DELETE);
         KEYWORDS.put("true", TokenType.TRUE);
         KEYWORDS.put("false", TokenType.FALSE);
         KEYWORDS.put("return", TokenType.RETURN);

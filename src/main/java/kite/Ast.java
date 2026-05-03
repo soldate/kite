@@ -21,13 +21,16 @@ final class Ast {
     record Param(String type, String name) {
     }
 
-    sealed interface Stmt permits VarDecl, ExprStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt {
+    sealed interface Stmt permits VarDecl, ExprStmt, ReturnStmt, IfStmt, WhileStmt, ForStmt, DeleteStmt {
     }
 
     record VarDecl(String type, String name, Expr initializer, boolean heap) implements Stmt {
     }
 
     record ExprStmt(Expr expr) implements Stmt {
+    }
+
+    record DeleteStmt(Expr expr) implements Stmt {
     }
 
     record ReturnStmt(Expr value) implements Stmt {

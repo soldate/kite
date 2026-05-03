@@ -121,6 +121,7 @@ final class CompilerTest {
         assertTrue(c.contains("kite_node* n = malloc(sizeof(kite_node));"));
         assertTrue(c.contains("node_init(n, 10);"));
         assertTrue(c.contains("n->value = 20;"));
+        assertTrue(c.contains("free(n);"));
         assertFalse(c.contains("_n_storage"));
     }
 

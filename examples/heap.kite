@@ -11,5 +11,6 @@ type main {
         heap node n = node(10);
 
         n.value = 20;
+        delete n;
     }
 }
