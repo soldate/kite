@@ -196,10 +196,14 @@ Owner/runtime infrastructure must not recursively allocate through `on_heap`.
 For example, if `heap_objects.add(p)` needs storage to track allocations, that storage must come from bootstrap/owner memory, not from the normal program heap hook.
 For now, the compiler specializes owner `list` fields into a bootstrap pointer-list implementation internally.
 
+Fields declared in `type main` are owner fields. If an owner field uses a `type` that performs internal allocations, the compiler must generate an owner/bootstrap variant of that type so its internal storage does not call `on_heap`.
+
 Rule:
 
 - program object heap allocation → `on_heap`
 - owner/runtime bookkeeping allocation → bootstrap allocator
+- `type main` fields are owner/bootstrap infrastructure
+- types used by owner fields must be adapted by the compiler when they allocate internally
 - `on_heap` may record returned pointers for later cleanup
 - bootstrap allocation must not call `on_heap`
 - if `on_heap` records an object for owner cleanup, regular program code must not also `delete` that same object
