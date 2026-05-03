@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import kite.Ast.Assign;
+import kite.Ast.ArrayLiteral;
 import kite.Ast.ArrayNew;
 import kite.Ast.Binary;
 import kite.Ast.Call;
@@ -295,7 +296,9 @@ final class CGenerator {
         if (expr == null) {
             return;
         }
-        if (expr instanceof ArrayNew arrayNew) {
+        if (expr instanceof ArrayLiteral arrayLiteral) {
+            arrayLiteral.values().forEach(this::collectArrayTypes);
+        } else if (expr instanceof ArrayNew arrayNew) {
             collectArrayType(arrayNew.elementType() + "[]");
             collectArrayTypes(arrayNew.size());
         } else if (expr instanceof Assign assign) {
@@ -317,7 +320,7 @@ final class CGenerator {
 
     private void collectArrayType(String type) {
         if (isArrayType(type)) {
-            arrayTypes.add(type);
+            arrayTypes.add(arrayElementType(type) + "[]");
         }
     }
 
@@ -484,15 +487,51 @@ final class CGenerator {
     }
 
     private void emitArrayVarDecl(VarDecl varDecl) {
+        validateArrayVarDecl(varDecl);
         line(cArrayName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
         line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
-        if (varDecl.initializer() instanceof ArrayNew arrayNew) {
-            String size = expr(arrayNew.size());
-            String elementType = arrayElementType(varDecl.type());
-            line(varDecl.name() + "->length = " + size + ";");
-            line(varDecl.name() + "->data = calloc(" + size + ", sizeof(" + cType(elementType) + "));");
+        if (varDecl.initializer() instanceof ArrayNew) {
+            throw new KiteException("array T(n) syntax is obsolete; use T[n] name or T[] name = [items]");
+        }
+
+        String size = arrayFixedSize(varDecl.type());
+        if (varDecl.initializer() instanceof ArrayLiteral arrayLiteral) {
+            if (size == null) {
+                size = Integer.toString(arrayLiteral.values().size());
+            } else if (Integer.parseInt(size) != arrayLiteral.values().size()) {
+                throw new KiteException("Array literal length does not match declared size");
+            }
+        }
+        if (size == null) {
+            throw new KiteException("Array size must be declared or inferred from a literal");
+        }
+
+        String elementType = arrayElementType(varDecl.type());
+        if (isKiteObject(elementType)) {
+            line(cStructName(elementType) + " " + storageName(varDecl.name()) + "_objects[" + size + "];");
+        }
+        line(cType(elementType) + " " + storageName(varDecl.name()) + "_data[" + size + "];");
+        line(varDecl.name() + "->length = " + size + ";");
+        line(varDecl.name() + "->data = " + storageName(varDecl.name()) + "_data;");
+        if (isKiteObject(elementType)) {
+            for (int i = 0; i < Integer.parseInt(size); i++) {
+                line(varDecl.name() + "->data[" + i + "] = &" + storageName(varDecl.name()) + "_objects[" + i + "];");
+            }
+        }
+
+        if (varDecl.initializer() instanceof ArrayLiteral arrayLiteral) {
+            for (int i = 0; i < arrayLiteral.values().size(); i++) {
+                line(varDecl.name() + "->data[" + i + "] = " + expr(arrayLiteral.values().get(i)) + ";");
+            }
         } else if (varDecl.initializer() != null) {
             line(varDecl.name() + " = " + expr(varDecl.initializer()) + ";");
+        }
+    }
+
+    private void validateArrayVarDecl(VarDecl varDecl) {
+        String elementType = arrayElementType(varDecl.type());
+        if (isKiteObject(elementType) && !varDecl.stack()) {
+            throw new KiteException("Object arrays must be explicit stack arrays");
         }
     }
 
@@ -550,8 +589,11 @@ final class CGenerator {
         if (expr instanceof Literal literal) {
             return literal.value();
         }
+        if (expr instanceof ArrayLiteral) {
+            throw new IllegalStateException("Array literals are only supported in variable initializers");
+        }
         if (expr instanceof ArrayNew) {
-            throw new IllegalStateException("Array creation is only supported in variable initializers");
+            throw new KiteException("array T(n) syntax is obsolete; use T[n] name or T[] name = [items]");
         }
         if (expr instanceof Variable variable) {
             if (currentFields.contains(variable.name()) && !locals.contains(variable.name())) {
@@ -747,11 +789,18 @@ final class CGenerator {
     }
 
     private boolean isArrayType(String kiteType) {
-        return kiteType != null && kiteType.endsWith("[]");
+        return kiteType != null && (kiteType.endsWith("[]") || kiteType.matches(".+\\[[0-9]+\\]"));
     }
 
     private String arrayElementType(String arrayType) {
-        return arrayType.substring(0, arrayType.length() - 2);
+        return arrayType.substring(0, arrayType.indexOf("["));
+    }
+
+    private String arrayFixedSize(String arrayType) {
+        int open = arrayType.indexOf("[");
+        int close = arrayType.indexOf("]");
+        String size = arrayType.substring(open + 1, close);
+        return size.isEmpty() ? null : size;
     }
 
     private String cArrayName(String arrayType) {

@@ -164,9 +164,14 @@ final class CompilerTest {
         assertTrue(c.contains("int32_t* data;"));
         assertTrue(c.contains("kite_array_int _numbers_storage;"));
         assertTrue(c.contains("kite_array_int* numbers = &_numbers_storage;"));
+        assertTrue(c.contains("int32_t _numbers_storage_data[3];"));
         assertTrue(c.contains("numbers->length = 3;"));
-        assertTrue(c.contains("numbers->data = calloc(3, sizeof(int32_t));"));
+        assertTrue(c.contains("numbers->data = _numbers_storage_data;"));
         assertTrue(c.contains("numbers->data[0] = 5;"));
+        assertTrue(c.contains("numbers->data[1] = 7;"));
+        assertTrue(c.contains("kite_array_int _fixed_storage;"));
+        assertTrue(c.contains("int32_t _fixed_storage_data[3];"));
+        assertTrue(c.contains("fixed->data = _fixed_storage_data;"));
         assertTrue(c.contains("if (numbers->length == 3) {"));
     }
 
@@ -301,6 +306,72 @@ final class CompilerTest {
                 """));
 
         assertEquals("owner list add expects a pointer", error.getMessage());
+    }
+
+    @Test
+    void rejectsObsoleteArrayCreationSyntax() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    void main() {
+                        int[] values = array int(3);
+                    }
+                }
+                """));
+
+        assertEquals("array T(n) syntax is obsolete; use T[n] name or T[] name = [items]",
+                error.getMessage());
+    }
+
+    @Test
+    void rejectsArrayLiteralLengthMismatch() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    void main() {
+                        int[2] values = [1, 2, 3];
+                    }
+                }
+                """));
+
+        assertEquals("Array literal length does not match declared size", error.getMessage());
+    }
+
+    @Test
+    void rejectsObjectArraysWithoutExplicitStack() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type node {
+                    int value;
+                }
+
+                type main {
+                    void main() {
+                        node[3] nodes;
+                    }
+                }
+                """));
+
+        assertEquals("Object arrays must be explicit stack arrays", error.getMessage());
+    }
+
+    @Test
+    void compilesExplicitStackObjectArrays() {
+        String c = compiler.compile("""
+                type node {
+                    int value;
+                }
+
+                type main {
+                    void main() {
+                        stack node[3] nodes;
+                    }
+                }
+                """);
+
+        assertTrue(c.contains("typedef struct kite_array_node {"));
+        assertTrue(c.contains("kite_node** data;"));
+        assertTrue(c.contains("kite_node _nodes_storage_objects[3];"));
+        assertTrue(c.contains("kite_node* _nodes_storage_data[3];"));
+        assertTrue(c.contains("nodes->data[0] = &_nodes_storage_objects[0];"));
+        assertTrue(c.contains("nodes->data[2] = &_nodes_storage_objects[2];"));
     }
 
     private String compileExample(String fileName) throws IOException {

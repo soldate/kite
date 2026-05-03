@@ -456,7 +456,7 @@ Supported language subset:
 - `type main` may define `pointer on_heap(int size)` to override program-object heap allocation
 - `delete expr;` lowers to explicit memory release for heap/manual pointers
 - deleting a known `stack` object is rejected by the compiler
-- planned array syntax: `T[] name = [items]` and `T[n] name`, with indexing via `a[i]` and length via `a.length`
+- array syntax: `T[] name = [items]` and `T[n] name`, with indexing via `a[i]` and length via `a.length`
 
 Examples live in `examples/`:
 

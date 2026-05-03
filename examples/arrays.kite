@@ -1,12 +1,16 @@
 type main {
     void main() {
-        int[] numbers = array int(3);
+        int[] numbers = [5, 7, 0];
+        int[3] fixed;
 
-        numbers[0] = 5;
-        numbers[1] = numbers[0] + 2;
+        fixed[0] = numbers[0];
+        fixed[1] = numbers[1];
+        fixed[2] = fixed[0] + fixed[1];
 
         if (numbers.length == 3) {
-            console.write("arrays");
+            if (fixed.length == 3) {
+                console.write("arrays");
+            }
         }
     }
 }

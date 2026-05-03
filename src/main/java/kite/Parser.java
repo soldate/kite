@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import kite.Ast.Assign;
+import kite.Ast.ArrayLiteral;
 import kite.Ast.ArrayNew;
 import kite.Ast.Binary;
 import kite.Ast.Call;
@@ -267,6 +268,16 @@ final class Parser {
             consume(TokenType.RIGHT_PAREN, "Expected ')' after array size");
             return new ArrayNew(elementType, size);
         }
+        if (match(TokenType.LEFT_BRACKET)) {
+            List<Expr> values = new ArrayList<>();
+            if (!check(TokenType.RIGHT_BRACKET)) {
+                do {
+                    values.add(expression());
+                } while (match(TokenType.COMMA));
+            }
+            consume(TokenType.RIGHT_BRACKET, "Expected ']' after array literal");
+            return new ArrayLiteral(values);
+        }
         if (match(TokenType.LEFT_PAREN)) {
             Expr expr = expression();
             consume(TokenType.RIGHT_PAREN, "Expected ')' after expression");
@@ -288,8 +299,13 @@ final class Parser {
                 TokenType.STRING_TYPE, TokenType.LIST, TokenType.IDENTIFIER)) {
             type = previous().lexeme();
             while (match(TokenType.LEFT_BRACKET)) {
-                consume(TokenType.RIGHT_BRACKET, "Expected ']' after array type");
-                type += "[]";
+                if (match(TokenType.RIGHT_BRACKET)) {
+                    type += "[]";
+                } else {
+                    String size = consume(TokenType.NUMBER, "Expected array size").lexeme();
+                    consume(TokenType.RIGHT_BRACKET, "Expected ']' after array size");
+                    type += "[" + size + "]";
+                }
             }
             return type;
         }
@@ -317,10 +333,17 @@ final class Parser {
         if (checkNext(TokenType.IDENTIFIER)) {
             return true;
         }
-        return current + 3 < tokens.size()
+        if (current + 3 < tokens.size()
                 && tokens.get(current + 1).type() == TokenType.LEFT_BRACKET
                 && tokens.get(current + 2).type() == TokenType.RIGHT_BRACKET
-                && tokens.get(current + 3).type() == TokenType.IDENTIFIER;
+                && tokens.get(current + 3).type() == TokenType.IDENTIFIER) {
+            return true;
+        }
+        return current + 4 < tokens.size()
+                && tokens.get(current + 1).type() == TokenType.LEFT_BRACKET
+                && tokens.get(current + 2).type() == TokenType.NUMBER
+                && tokens.get(current + 3).type() == TokenType.RIGHT_BRACKET
+                && tokens.get(current + 4).type() == TokenType.IDENTIFIER;
     }
 
     private boolean isBarePointer() {
