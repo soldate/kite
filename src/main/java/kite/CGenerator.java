@@ -563,6 +563,9 @@ final class CGenerator {
             if (get.object() instanceof Variable variable && variable.name().equals("console") && get.name().equals("write")) {
                 return "console_write";
             }
+            if (get.object() instanceof Variable variable && variable.name().equals("allocator") && get.name().equals("alloc")) {
+                return "bootstrap_alloc";
+            }
             if (get.name().equals("length") && isArrayExpr(get.object())) {
                 return expr(get.object()) + "->length";
             }

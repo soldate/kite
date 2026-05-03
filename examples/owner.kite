@@ -2,7 +2,7 @@ type main {
     list heap_objects;
 
     pointer on_heap(int size) {
-        pointer p = bootstrap_alloc(size);
+        pointer p = allocator.alloc(size);
 
         heap_objects.add(p);
         return p;
