@@ -106,7 +106,7 @@ node b = copy a;
 node n;
 ```
 
-Always valid.
+Always valid. Object variables are non-null references.
 
 Nullable/manual:
 
@@ -135,20 +135,23 @@ p = p + 1;
 node n;
 ```
 
-- stack if it does not escape
-- heap if it escapes → `on_heap`
+- heap by default
+- allocation goes through `on_heap`
+- lifetime is manual
+- must be released with `delete n;`
 
-Force heap allocation:
+Force stack allocation:
 
 ```c
-heap node n;
+stack node n;
 ```
 
 - `n` is still a non-null object reference
-- allocation is explicit in source
-- lifetime is still manual
-- must be released with `delete n;`
+- storage is local to the current scope
+- must not be released with `delete`
 - different from `pointer node`, which is nullable/manual pointer syntax
+
+Explicit `heap node n;` is accepted as an alias for the default heap behavior, but it is usually unnecessary.
 
 ```c
 delete obj;
@@ -390,11 +393,12 @@ Supported language subset:
 - `for`
 - implicit `self` access for fields inside methods
 - object method calls for local variables, such as `n.init(10)`
-- local initialization syntax, such as `node n = node(10)`, lowered to `node n; n.init(10);`
+- local initialization syntax, such as `node n = node(10)`, lowered to allocation plus `n.init(10)`
 - C function prototypes, so method calls do not depend on source type order
 - `pointer T` types, including pointers to primitive and Kite-defined types
-- Kite-defined object variables are references; local non-escaping objects currently lower to stack storage plus a pointer reference
-- explicit heap object declarations with `heap T name`
+- Kite-defined object variables are references and allocate on heap by default
+- explicit stack object declarations with `stack T name`
+- explicit `heap T name` declarations are accepted as an alias for default heap allocation
 - runtime `kite_on_heap(size)` helper for heap object allocation; currently backed by `malloc`
 - `type main` may define `pointer on_heap(int size)` to override program-object heap allocation
 - `delete expr;` lowers to explicit memory release for heap/manual pointers

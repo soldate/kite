@@ -111,11 +111,11 @@ final class CompilerTest {
     void compilesObjectsAsReferences() throws IOException {
         String c = compileExample("references.kite");
 
-        assertTrue(c.contains("kite_node _a_storage;"));
-        assertTrue(c.contains("kite_node* a = &_a_storage;"));
+        assertTrue(c.contains("kite_node* a = kite_on_heap(sizeof(kite_node));"));
         assertTrue(c.contains("node_init(a, 10);"));
         assertTrue(c.contains("kite_node* b = a;"));
         assertTrue(c.contains("b->value = 20;"));
+        assertTrue(c.contains("free(a);"));
     }
 
     @Test

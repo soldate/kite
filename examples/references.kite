@@ -12,5 +12,6 @@ type main {
         node b = a;
 
         b.value = 20;
+        delete a;
     }
 }

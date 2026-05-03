@@ -302,28 +302,19 @@ final class CGenerator {
         if (isArrayType(varDecl.type())) {
             emitArrayVarDecl(varDecl);
         } else if (isKiteObject(varDecl.type())) {
-            if (varDecl.heap()) {
-                line(cType(varDecl.type()) + " " + varDecl.name() + " = kite_on_heap(sizeof(" + cStructName(varDecl.type()) + "));");
-                if (isInitializerCall(varDecl)) {
-                    Call initCall = (Call) varDecl.initializer();
-                    String args = initCall.args().stream().map(this::expr).collect(Collectors.joining(", "));
-                    String allArgs = args.isEmpty() ? varDecl.name() : varDecl.name() + ", " + args;
-                    line(varDecl.type() + "_init(" + allArgs + ");");
-                } else if (varDecl.initializer() != null) {
-                    line(varDecl.name() + " = " + expr(varDecl.initializer()) + ";");
-                }
-            } else if (isInitializerCall(varDecl)) {
+            if (varDecl.stack()) {
                 line(cStructName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
                 line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
-                Call initCall = (Call) varDecl.initializer();
-                String args = initCall.args().stream().map(this::expr).collect(Collectors.joining(", "));
-                String allArgs = args.isEmpty() ? varDecl.name() : varDecl.name() + ", " + args;
-                line(varDecl.type() + "_init(" + allArgs + ");");
+                emitObjectInitializer(varDecl);
             } else if (varDecl.initializer() != null) {
-                line(cType(varDecl.type()) + " " + varDecl.name() + " = " + expr(varDecl.initializer()) + ";");
+                if (isInitializerCall(varDecl)) {
+                    line(cType(varDecl.type()) + " " + varDecl.name() + " = kite_on_heap(sizeof(" + cStructName(varDecl.type()) + "));");
+                    emitObjectInitializer(varDecl);
+                } else {
+                    line(cType(varDecl.type()) + " " + varDecl.name() + " = " + expr(varDecl.initializer()) + ";");
+                }
             } else {
-                line(cStructName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
-                line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
+                line(cType(varDecl.type()) + " " + varDecl.name() + " = kite_on_heap(sizeof(" + cStructName(varDecl.type()) + "));");
             }
         } else if (isInitializerCall(varDecl)) {
             line(cType(varDecl.type()) + " " + varDecl.name() + ";");
@@ -338,6 +329,17 @@ final class CGenerator {
                 out.append(" = ").append(expr(varDecl.initializer()));
             }
             out.append(";\n");
+        }
+    }
+
+    private void emitObjectInitializer(VarDecl varDecl) {
+        if (isInitializerCall(varDecl)) {
+            Call initCall = (Call) varDecl.initializer();
+            String args = initCall.args().stream().map(this::expr).collect(Collectors.joining(", "));
+            String allArgs = args.isEmpty() ? varDecl.name() : varDecl.name() + ", " + args;
+            line(varDecl.type() + "_init(" + allArgs + ");");
+        } else if (varDecl.initializer() != null) {
+            line(varDecl.name() + " = " + expr(varDecl.initializer()) + ";");
         }
     }
 

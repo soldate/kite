@@ -1,6 +1,6 @@
 type main {
     void main() {
-        node n = node(10);
+        stack node n = node(10);
     }
 }
 

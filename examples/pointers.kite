@@ -11,7 +11,7 @@ type node {
 type main {
     void main() {
         pointer int p = 0;
-        node n = node(10);
+        stack node n = node(10);
 
         p = p + 1;
     }

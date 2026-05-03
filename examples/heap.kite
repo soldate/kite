@@ -8,7 +8,7 @@ type node {
 
 type main {
     void main() {
-        heap node n = node(10);
+        node n = node(10);
 
         n.value = 20;
         delete n;
