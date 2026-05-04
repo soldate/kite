@@ -145,6 +145,7 @@ final class CompilerTest {
         String c = compileExample("owner.kite");
 
         assertTrue(c.contains("#define KITE_TYPE_node"));
+        assertTrue(c.contains("#define KITE_TYPE_box"));
         assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size, int32_t type);"));
         assertTrue(c.contains("static kite_main kite_owner;"));
         assertTrue(c.contains("static void* kite_on_heap(size_t size, int32_t type) { return main_on_heap(&kite_owner, (int32_t)size, type); }"));
@@ -152,11 +153,14 @@ final class CompilerTest {
         assertTrue(c.contains("void* p = bootstrap_alloc(size);"));
         assertTrue(c.contains("if (type == KITE_TYPE_node) {"));
         assertFalse(c.contains("allocator.alloc"));
-        assertTrue(c.contains("pointer_list_add(&self->heap_objects, p);"));
+        assertTrue(c.contains("pointer_list_add(&self->node_objects, p);"));
+        assertTrue(c.contains("pointer_list_add(&self->box_objects, p);"));
         assertTrue(c.contains("void main_clean_heap(kite_main* self) {"));
-        assertTrue(c.contains("pointer_list_delete_all(&self->heap_objects);"));
+        assertTrue(c.contains("pointer_list_delete_all(&self->node_objects);"));
+        assertTrue(c.contains("pointer_list_delete_all(&self->box_objects);"));
         assertTrue(c.contains("kite_node* first = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("kite_node* second = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
+        assertTrue(c.contains("kite_box* payload = kite_on_heap(sizeof(kite_box), KITE_TYPE_box);"));
         assertTrue(c.contains("main_clean_heap(&kite_owner);"));
     }
 

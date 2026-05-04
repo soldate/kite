@@ -1,31 +1,44 @@
 type main {
-    list heap_objects;
+    list node_objects;
+    list box_objects;
 
     pointer on_heap(int size, int type) {
         pointer p = allocator.alloc(size);
 
         if (type == node.id) {
-            heap_objects.add(p);
+            node_objects.add(p);
+        } else {
+            box_objects.add(p);
         }
 
         return p;
     }
 
     void clean_heap() {
-        heap_objects.delete_all();
+        node_objects.delete_all();
+        box_objects.delete_all();
     }
 
     void main() {
         node first = node(10);
         node second = node(20);
+        box payload = box(30);
 
-        first.value = second.value;
+        first.value = second.value + payload.value;
 
         clean_heap();
     }
 }
 
 type node {
+    int value;
+
+    void init(int v) {
+        value = v;
+    }
+}
+
+type box {
     int value;
 
     void init(int v) {
