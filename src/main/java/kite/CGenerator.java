@@ -142,7 +142,7 @@ final class CGenerator {
             return false;
         }
         if (stmt instanceof VarDecl varDecl) {
-            return isKiteObject(varDecl.type()) && !varDecl.stack();
+            return (isKiteObject(varDecl.type()) || isArrayType(varDecl.type())) && !varDecl.stack();
         }
         if (stmt instanceof IfStmt ifStmt) {
             return ifStmt.thenBranch().stream().anyMatch(this::usesHeapObjects)
@@ -631,8 +631,6 @@ final class CGenerator {
 
     private void emitArrayVarDecl(VarDecl varDecl) {
         validateArrayVarDecl(varDecl);
-        line(cArrayName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
-        line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
         if (varDecl.initializer() instanceof ArrayNew) {
             throw new KiteException("array T(n) syntax is obsolete; use T[n] name or T[] name = [items]");
         }
@@ -650,16 +648,10 @@ final class CGenerator {
         }
 
         String elementType = arrayElementType(varDecl.type());
-        if (isKiteObject(elementType)) {
-            line(cStructName(elementType) + " " + storageName(varDecl.name()) + "_objects[" + size + "];");
-        }
-        line(cType(elementType) + " " + storageName(varDecl.name()) + "_data[" + size + "];");
-        line(varDecl.name() + "->length = " + size + ";");
-        line(varDecl.name() + "->data = " + storageName(varDecl.name()) + "_data;");
-        if (isKiteObject(elementType)) {
-            for (int i = 0; i < Integer.parseInt(size); i++) {
-                line(varDecl.name() + "->data[" + i + "] = &" + storageName(varDecl.name()) + "_objects[" + i + "];");
-            }
+        if (varDecl.stack()) {
+            emitStackArrayStorage(varDecl, size, elementType);
+        } else {
+            emitHeapArrayStorage(varDecl, size, elementType);
         }
 
         if (varDecl.initializer() instanceof ArrayLiteral arrayLiteral) {
@@ -671,11 +663,39 @@ final class CGenerator {
         }
     }
 
-    private void validateArrayVarDecl(VarDecl varDecl) {
-        String elementType = arrayElementType(varDecl.type());
-        if (isKiteObject(elementType) && !varDecl.stack()) {
-            throw new KiteException("Object arrays must be explicit stack arrays");
+    private void emitStackArrayStorage(VarDecl varDecl, String size, String elementType) {
+        line(cArrayName(varDecl.type()) + " " + storageName(varDecl.name()) + ";");
+        line(cType(varDecl.type()) + " " + varDecl.name() + " = &" + storageName(varDecl.name()) + ";");
+        if (isKiteObject(elementType)) {
+            line(cStructName(elementType) + " " + storageName(varDecl.name()) + "_objects[" + size + "];");
         }
+        line(cType(elementType) + " " + storageName(varDecl.name()) + "_data[" + size + "];");
+        line(varDecl.name() + "->length = " + size + ";");
+        line(varDecl.name() + "->data = " + storageName(varDecl.name()) + "_data;");
+        if (isKiteObject(elementType)) {
+            for (int i = 0; i < Integer.parseInt(size); i++) {
+                line(varDecl.name() + "->data[" + i + "] = &" + storageName(varDecl.name()) + "_objects[" + i + "];");
+            }
+        }
+    }
+
+    private void emitHeapArrayStorage(VarDecl varDecl, String size, String elementType) {
+        line(cType(varDecl.type()) + " " + varDecl.name() + " = kite_on_heap(sizeof(" + cArrayName(varDecl.type()) + "), 0);");
+        line(varDecl.name() + "->length = " + size + ";");
+        if (isKiteObject(elementType)) {
+            String objectsName = storageName(varDecl.name()) + "_objects";
+            line(cStructName(elementType) + "* " + objectsName + " = kite_on_heap(sizeof(" + cStructName(elementType)
+                    + ") * " + size + ", " + cTypeIdName(elementType) + ");");
+            line(varDecl.name() + "->data = kite_on_heap(sizeof(" + cType(elementType) + ") * " + size + ", 0);");
+            for (int i = 0; i < Integer.parseInt(size); i++) {
+                line(varDecl.name() + "->data[" + i + "] = &" + objectsName + "[" + i + "];");
+            }
+        } else {
+            line(varDecl.name() + "->data = kite_on_heap(sizeof(" + cType(elementType) + ") * " + size + ", 0);");
+        }
+    }
+
+    private void validateArrayVarDecl(VarDecl varDecl) {
     }
 
     private boolean isInitializerCall(VarDecl varDecl) {

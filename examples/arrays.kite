@@ -1,3 +1,17 @@
+special type memory {
+    list heap_objects;
+
+    pointer on_heap(int size, int type) {
+        pointer p = allocator.alloc(size);
+        heap_objects.add(p);
+        return p;
+    }
+
+    void clean_heap() {
+        heap_objects.delete_all();
+    }
+}
+
 special type main {
     void main() {
         int[] numbers = [5, 7, 0];
@@ -12,5 +26,7 @@ special type main {
                 console.write("arrays");
             }
         }
+
+        memory.clean_heap();
     }
 }

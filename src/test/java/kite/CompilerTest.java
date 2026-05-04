@@ -177,17 +177,15 @@ final class CompilerTest {
         assertTrue(c.contains("typedef struct kite_array_int {"));
         assertTrue(c.contains("int32_t length;"));
         assertTrue(c.contains("int32_t* data;"));
-        assertTrue(c.contains("kite_array_int _numbers_storage;"));
-        assertTrue(c.contains("kite_array_int* numbers = &_numbers_storage;"));
-        assertTrue(c.contains("int32_t _numbers_storage_data[3];"));
+        assertTrue(c.contains("kite_array_int* numbers = kite_on_heap(sizeof(kite_array_int), 0);"));
+        assertTrue(c.contains("numbers->data = kite_on_heap(sizeof(int32_t) * 3, 0);"));
         assertTrue(c.contains("numbers->length = 3;"));
-        assertTrue(c.contains("numbers->data = _numbers_storage_data;"));
         assertTrue(c.contains("numbers->data[0] = 5;"));
         assertTrue(c.contains("numbers->data[1] = 7;"));
-        assertTrue(c.contains("kite_array_int _fixed_storage;"));
-        assertTrue(c.contains("int32_t _fixed_storage_data[3];"));
-        assertTrue(c.contains("fixed->data = _fixed_storage_data;"));
+        assertTrue(c.contains("kite_array_int* fixed = kite_on_heap(sizeof(kite_array_int), 0);"));
+        assertTrue(c.contains("fixed->data = kite_on_heap(sizeof(int32_t) * 3, 0);"));
         assertTrue(c.contains("if (numbers->length == 3) {"));
+        assertTrue(c.contains("memory_clean_heap(&kite_memory_owner);"));
     }
 
     @Test
@@ -498,7 +496,7 @@ final class CompilerTest {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
                 special type main {
                     void main() {
-                        int[] values = array int(3);
+                        stack int[] values = array int(3);
                     }
                 }
                 """));
@@ -512,7 +510,7 @@ final class CompilerTest {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
                 special type main {
                     void main() {
-                        int[2] values = [1, 2, 3];
+                        stack int[2] values = [1, 2, 3];
                     }
                 }
                 """));
@@ -521,10 +519,20 @@ final class CompilerTest {
     }
 
     @Test
-    void rejectsObjectArraysWithoutExplicitStack() {
-        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+    void compilesHeapObjectArrays() {
+        String c = compiler.compile("""
                 type node {
                     int value;
+                }
+
+                special type memory {
+                    list heap_objects;
+
+                    pointer on_heap(int size, int type) {
+                        pointer p = allocator.alloc(size);
+                        heap_objects.add(p);
+                        return p;
+                    }
                 }
 
                 special type main {
@@ -532,9 +540,15 @@ final class CompilerTest {
                         node[3] nodes;
                     }
                 }
-                """));
+                """);
 
-        assertEquals("Object arrays must be explicit stack arrays", error.getMessage());
+        assertTrue(c.contains("typedef struct kite_array_node {"));
+        assertTrue(c.contains("kite_node** data;"));
+        assertTrue(c.contains("kite_array_node* nodes = kite_on_heap(sizeof(kite_array_node), 0);"));
+        assertTrue(c.contains("kite_node* _nodes_storage_objects = kite_on_heap(sizeof(kite_node) * 3, KITE_TYPE_node);"));
+        assertTrue(c.contains("nodes->data = kite_on_heap(sizeof(kite_node*) * 3, 0);"));
+        assertTrue(c.contains("nodes->data[0] = &_nodes_storage_objects[0];"));
+        assertTrue(c.contains("nodes->data[2] = &_nodes_storage_objects[2];"));
     }
 
     @Test

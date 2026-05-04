@@ -16,9 +16,26 @@ Kite follows a few core principles:
 - no garbage collector
 - no hidden allocation or lifetime management
 - no global magic
+- no inversion of control
 - no forced safety model
 - happy path first
 - full control when needed
+
+Kite treats the running program as the programmer's responsibility.
+The execution line should belong to the code that is actually running, not to a framework, runtime, garbage collector, or hidden scheduler.
+Libraries may help, but they must not take ownership of the program.
+
+This means important effects should pass through explicit program-owned hooks.
+Allocating memory, releasing memory, opening files, keeping handles, scheduling work, or registering long-lived resources should be visible to the owner of the program.
+The owner does not need to implement everything manually, but it must be aware of what is happening and decide which policy is being used.
+
+In Kite, responsibility is part of the design:
+
+- the programmer owns the execution flow
+- the owner owns resource policy
+- libraries request resources instead of silently taking control
+- cleanup is explicit
+- hidden global lifecycle management is avoided
 
 ---
 
@@ -280,21 +297,29 @@ byte[] buffer;
 ```c
 int[] values = [1, 2, 3];
 int[3] numbers;
+stack int[3] local_numbers;
 
 numbers[0] = 5;
 console.write(numbers.length);
 ```
 
-Arrays are stack storage. The length is known by the compiler and available with `.length`.
+Arrays follow the same storage rule as objects:
 
-Object arrays must be explicit about stack storage:
+- without `stack`, array storage is heap storage and must pass through `special type memory`
+- with `stack`, array storage is local to the current scope
+- the length is known by the compiler for fixed arrays and literals, and is available with `.length`
 
 ```c
-node[3] nodes;        // error
-stack node[3] nodes;  // ok
+int[3] values;        // heap array
+stack int[3] values;  // stack array
 ```
 
-This avoids confusing object arrays with heap containers. Heap collections should use `list` or another owner/container type.
+Object arrays use the same rule:
+
+```c
+node[3] nodes;        // heap array storage
+stack node[3] nodes;  // stack array storage
+```
 
 The old provisional form is not part of the intended language:
 
