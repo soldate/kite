@@ -125,10 +125,11 @@ final class CompilerTest {
     void compilesDefaultHeapObjects() throws IOException {
         String c = compileExample("default_heap.kite");
 
-        assertTrue(c.contains("static void* kite_on_heap(size_t size, int32_t type) { (void)type; return main_on_heap(&kite_owner, (int32_t)size); }"));
-        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size) {"));
+        assertTrue(c.contains("static void* kite_on_heap(size_t size, int32_t type) { return main_on_heap(&kite_owner, (int32_t)size, type); }"));
+        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size, int32_t type) {"));
         assertTrue(c.contains("kite_pointer_list heap_objects;"));
         assertFalse(c.contains("kite_list heap_objects;"));
+        assertTrue(c.contains("if (type == KITE_TYPE_node) {"));
         assertTrue(c.contains("pointer_list_add(&self->heap_objects, p);"));
         assertTrue(c.contains("kite_node* a = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("node_init(a, 10);"));
@@ -265,6 +266,54 @@ final class CompilerTest {
                 """));
 
         assertEquals("allocator.alloc is currently supported only inside type main", error.getMessage());
+    }
+
+    @Test
+    void rejectsOnHeapWithInvalidReturnType() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    int on_heap(int size) {
+                        return 0;
+                    }
+
+                    void main() {
+                    }
+                }
+                """));
+
+        assertEquals("on_heap must return pointer", error.getMessage());
+    }
+
+    @Test
+    void rejectsOnHeapWithInvalidParameterCount() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    pointer on_heap() {
+                        return allocator.alloc(1);
+                    }
+
+                    void main() {
+                    }
+                }
+                """));
+
+        assertEquals("on_heap expects 1 or 2 parameters", error.getMessage());
+    }
+
+    @Test
+    void rejectsOnHeapWithInvalidTypeParameter() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    pointer on_heap(int size, string type) {
+                        return allocator.alloc(size);
+                    }
+
+                    void main() {
+                    }
+                }
+                """));
+
+        assertEquals("on_heap second parameter must be int type", error.getMessage());
     }
 
     @Test
