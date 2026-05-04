@@ -178,6 +178,60 @@ delete obj;
 
 ---
 
+## Compared to C
+
+Kite is not trying to hide C's power.
+It tries to make the common path cleaner and make dangerous paths explicit.
+
+In C, a common lifetime bug is returning the address of local stack storage:
+
+```c
+node* make_node(void) {
+    node n;
+    n.value = 10;
+    return &n; // dangling pointer
+}
+```
+
+The returned pointer points to storage that no longer exists after the function returns.
+
+In Kite, the normal declaration does not mean stack storage:
+
+```c
+node make_node() {
+    node n = node(10);
+    return n; // heap object reference
+}
+```
+
+Because `node n` allocates through `special type memory`, returning `n` does not return a pointer to destroyed local storage.
+The owner still has to release the object later, but the default path avoids the accidental C-style dangling pointer.
+
+To create local storage, the programmer must say so:
+
+```c
+node make_node() {
+    stack node n = node(10);
+    return n; // wrong: returning stack-backed storage
+}
+```
+
+This can still be wrong, but it is wrong in code that explicitly asked for stack storage.
+The goal is not to make mistakes impossible.
+The goal is to move sharp edges behind explicit words such as `stack`, `pointer`, and `delete`.
+
+Kite improves on C by making ownership-relevant choices visible:
+
+- default object and array storage is heap storage managed through `special type memory`
+- stack storage requires the `stack` keyword
+- nullable/manual pointer behavior requires `pointer`
+- cleanup is explicit with `delete` or owner cleanup methods
+- resource policy lives in program-owned hooks instead of hidden library control
+
+This keeps the programmer responsible, but removes some accidental footguns from the everyday syntax.
+
+---
+
 ## Owner
 
 ```c
@@ -261,6 +315,42 @@ pointer on_heap(int size, int type) {
 ```
 
 The compiler generates stable type ids for Kite-defined types and exposes them as `mytype.id`. This keeps `pointer` raw while still giving the owner enough information to organize heap allocations. The older `on_heap(int size)` form is still accepted when type metadata is not needed.
+
+---
+
+## Future memory policies
+
+Reference counting may become a memory policy implemented by `special type memory`, not a hidden runtime rule.
+
+One possible direction is to let the owner store metadata before each heap object:
+
+```c
+type allocation_header {
+    int ref_count;
+    int type;
+    int size;
+}
+```
+
+Then `on_heap` can allocate both the header and the object storage, initialize metadata, and return the object pointer.
+Later hooks could let the compiler cooperate with that policy:
+
+```c
+special type memory {
+    pointer on_heap(int size, int type);
+    void on_delete(pointer p, int type);
+
+    // future
+    void on_retain(pointer p, int type);
+    void on_release(pointer p, int type);
+}
+```
+
+This would allow an owner to implement reference counting while keeping the policy visible.
+The compiler could eventually call `on_retain` when a reference is copied and `on_release` when a reference is overwritten or leaves scope.
+
+This is intentionally future work.
+Before implementing it, Kite needs clear rules for assignment, field references, arrays, lists, scope exits, cycles, and whether `delete` means release or forced destruction.
 
 ---
 
