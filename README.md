@@ -166,10 +166,13 @@ delete obj;
 type main {
     list heap_objects;
 
-    pointer on_heap(int size) {
+    pointer on_heap(int size, int type) {
         pointer p = allocator.alloc(size);
 
-        heap_objects.add(p);
+        if (type == node.id) {
+            heap_objects.add(p);
+        }
+
         return p;
     }
 
@@ -211,7 +214,7 @@ Rule:
 - bootstrap allocation must not call `on_heap`
 - if `on_heap` records an object for owner cleanup, regular program code must not also `delete` that same object
 
-Future direction: `on_heap` should receive type metadata so the owner can route allocations by object type:
+`on_heap` may receive type metadata so the owner can route allocations by object type:
 
 ```c
 pointer on_heap(int size, int type) {
@@ -227,7 +230,7 @@ pointer on_heap(int size, int type) {
 }
 ```
 
-The compiler should generate stable type ids for Kite-defined types. This keeps `pointer` raw while still giving the owner enough information to organize heap allocations.
+The compiler generates stable type ids for Kite-defined types and exposes them as `mytype.id`. This keeps `pointer` raw while still giving the owner enough information to organize heap allocations. The older `on_heap(int size)` form is still accepted when type metadata is not needed.
 
 ---
 
@@ -452,8 +455,8 @@ Supported language subset:
 - `pointer T` types, including pointers to primitive and Kite-defined types
 - Kite-defined object variables are references and allocate on heap by default
 - explicit stack object declarations with `stack T name`
-- runtime `kite_on_heap(size)` helper for heap object allocation; currently backed by `malloc`
-- `type main` may define `pointer on_heap(int size)` to override program-object heap allocation
+- runtime `kite_on_heap(size, type)` helper for heap object allocation; currently backed by `malloc`
+- `type main` may define `pointer on_heap(int size)` or `pointer on_heap(int size, int type)` to override program-object heap allocation
 - `delete expr;` lowers to explicit memory release for heap/manual pointers
 - deleting a known `stack` object is rejected by the compiler
 - array syntax: `T[] name = [items]` and `T[n] name`, with indexing via `a[i]` and length via `a.length`

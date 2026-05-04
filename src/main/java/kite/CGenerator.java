@@ -3,6 +3,7 @@ package kite;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,7 @@ final class CGenerator {
     private final Map<String, Set<String>> fieldsByType = new HashMap<>();
     private final Map<String, Map<String, String>> fieldTypesByType = new HashMap<>();
     private final Map<String, Set<String>> methodsByType = new HashMap<>();
+    private final Map<String, Integer> typeIds = new LinkedHashMap<>();
     private final Set<String> typeNames = new HashSet<>();
     private final Set<String> arrayTypes = new LinkedHashSet<>();
     private Set<String> currentFields = Set.of();
@@ -59,6 +61,7 @@ final class CGenerator {
 
         indexFields(program);
         validateListUsage(program);
+        emitTypeIds();
         if (usesBootstrapList(program)) {
             emitPointerListRuntime();
         }
@@ -98,26 +101,47 @@ final class CGenerator {
     }
 
     private void emitHeapHook(Program program) {
-        if (hasMainOnHeap(program)) {
+        MethodDecl onHeap = mainOnHeap(program);
+        if (onHeap != null) {
             out.append("static kite_main kite_owner;\n");
-            out.append("static void* kite_on_heap(size_t size) { return main_on_heap(&kite_owner, (int32_t)size); }\n\n");
+            if (onHeap.params().size() == 2) {
+                out.append("static void* kite_on_heap(size_t size, int32_t type) { return main_on_heap(&kite_owner, (int32_t)size, type); }\n\n");
+            } else {
+                out.append("static void* kite_on_heap(size_t size, int32_t type) { (void)type; return main_on_heap(&kite_owner, (int32_t)size); }\n\n");
+            }
         } else {
-            out.append("static void* kite_on_heap(size_t size) { return bootstrap_alloc((int32_t)size); }\n\n");
+            out.append("static void* kite_on_heap(size_t size, int32_t type) { (void)type; return bootstrap_alloc((int32_t)size); }\n\n");
         }
     }
 
-    private boolean hasMainOnHeap(Program program) {
+    private MethodDecl mainOnHeap(Program program) {
         for (TypeDecl type : program.types()) {
             if (!type.name().equals("main")) {
                 continue;
             }
             for (Member member : type.members()) {
                 if (member instanceof MethodDecl method && method.name().equals("on_heap")) {
-                    return true;
+                    validateOnHeapSignature(method);
+                    return method;
                 }
             }
         }
-        return false;
+        return null;
+    }
+
+    private void validateOnHeapSignature(MethodDecl method) {
+        if (!method.returnType().equals("pointer")) {
+            throw new KiteException("on_heap must return pointer");
+        }
+        if (method.params().size() != 1 && method.params().size() != 2) {
+            throw new KiteException("on_heap expects 1 or 2 parameters");
+        }
+        if (!method.params().get(0).type().equals("int")) {
+            throw new KiteException("on_heap first parameter must be int size");
+        }
+        if (method.params().size() == 2 && !method.params().get(1).type().equals("int")) {
+            throw new KiteException("on_heap second parameter must be int type");
+        }
     }
 
     private void validateListUsage(Program program) {
@@ -218,6 +242,13 @@ final class CGenerator {
         out.append("}\n\n");
     }
 
+    private void emitTypeIds() {
+        typeIds.forEach((type, id) -> out.append("#define ").append(cTypeIdName(type)).append(" ").append(id).append("\n"));
+        if (!typeIds.isEmpty()) {
+            out.append("\n");
+        }
+    }
+
     private List<String> methodPrototypes(Program program) {
         List<String> prototypes = new ArrayList<>();
         for (TypeDecl type : program.types()) {
@@ -233,6 +264,7 @@ final class CGenerator {
     private void indexFields(Program program) {
         for (TypeDecl type : program.types()) {
             typeNames.add(type.name());
+            typeIds.put(type.name(), typeIds.size() + 1);
             Set<String> fields = new HashSet<>();
             Map<String, String> fieldTypes = new HashMap<>();
             Set<String> methods = new HashSet<>();
@@ -445,13 +477,13 @@ final class CGenerator {
                 emitObjectInitializer(varDecl);
             } else if (varDecl.initializer() != null) {
                 if (isInitializerCall(varDecl)) {
-                    line(cType(varDecl.type()) + " " + varDecl.name() + " = kite_on_heap(sizeof(" + cStructName(varDecl.type()) + "));");
+                    line(cType(varDecl.type()) + " " + varDecl.name() + " = kite_on_heap(sizeof(" + cStructName(varDecl.type()) + "), " + cTypeIdName(varDecl.type()) + ");");
                     emitObjectInitializer(varDecl);
                 } else {
                     line(cType(varDecl.type()) + " " + varDecl.name() + " = " + expr(varDecl.initializer()) + ";");
                 }
             } else {
-                line(cType(varDecl.type()) + " " + varDecl.name() + " = kite_on_heap(sizeof(" + cStructName(varDecl.type()) + "));");
+                line(cType(varDecl.type()) + " " + varDecl.name() + " = kite_on_heap(sizeof(" + cStructName(varDecl.type()) + "), " + cTypeIdName(varDecl.type()) + ");");
             }
         } else if (isInitializerCall(varDecl)) {
             line(cType(varDecl.type()) + " " + varDecl.name() + ";");
@@ -602,6 +634,9 @@ final class CGenerator {
             return variable.name();
         }
         if (expr instanceof Get get) {
+            if (get.object() instanceof Variable variable && typeIds.containsKey(variable.name()) && get.name().equals("id")) {
+                return cTypeIdName(variable.name());
+            }
             if (get.object() instanceof Variable variable && variable.name().equals("console") && get.name().equals("write")) {
                 return "console_write";
             }
@@ -774,6 +809,10 @@ final class CGenerator {
 
     private String cStructName(String kiteType) {
         return "kite_" + kiteType;
+    }
+
+    private String cTypeIdName(String kiteType) {
+        return "KITE_TYPE_" + kiteType;
     }
 
     private boolean isKiteObject(String kiteType) {

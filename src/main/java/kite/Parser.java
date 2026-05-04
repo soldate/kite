@@ -52,7 +52,7 @@ final class Parser {
         List<Member> members = new ArrayList<>();
         while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
             String memberType = parseType();
-            String memberName = consume(TokenType.IDENTIFIER, "Expected member name").lexeme();
+            String memberName = consumeName("Expected member name").lexeme();
             if (match(TokenType.LEFT_PAREN)) {
                 members.add(methodDecl(memberType, memberName));
             } else {
@@ -70,7 +70,7 @@ final class Parser {
         if (!check(TokenType.RIGHT_PAREN)) {
             do {
                 String type = parseType();
-                String paramName = consume(TokenType.IDENTIFIER, "Expected parameter name").lexeme();
+                String paramName = consumeName("Expected parameter name").lexeme();
                 params.add(new Param(type, paramName));
             } while (match(TokenType.COMMA));
         }
@@ -156,7 +156,7 @@ final class Parser {
     private VarDecl varDecl() {
         boolean stack = match(TokenType.STACK);
         String type = parseType();
-        String name = consume(TokenType.IDENTIFIER, "Expected variable name").lexeme();
+        String name = consumeName("Expected variable name").lexeme();
         Expr initializer = null;
         if (match(TokenType.EQUAL)) {
             initializer = expression();
@@ -258,7 +258,7 @@ final class Parser {
         if (match(TokenType.NUMBER, TokenType.STRING, TokenType.TRUE, TokenType.FALSE)) {
             return new Literal(previous().lexeme());
         }
-        if (match(TokenType.IDENTIFIER)) {
+        if (match(TokenType.IDENTIFIER, TokenType.TYPE)) {
             return new Variable(previous().lexeme());
         }
         if (match(TokenType.ARRAY)) {
@@ -365,6 +365,13 @@ final class Parser {
 
     private Token consume(TokenType type, String message) {
         if (check(type)) {
+            return advance();
+        }
+        throw error(peek(), message);
+    }
+
+    private Token consumeName(String message) {
+        if (check(TokenType.IDENTIFIER) || check(TokenType.TYPE)) {
             return advance();
         }
         throw error(peek(), message);

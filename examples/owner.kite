@@ -1,10 +1,13 @@
 type main {
     list heap_objects;
 
-    pointer on_heap(int size) {
+    pointer on_heap(int size, int type) {
         pointer p = allocator.alloc(size);
 
-        heap_objects.add(p);
+        if (type == node.id) {
+            heap_objects.add(p);
+        }
+
         return p;
     }
 

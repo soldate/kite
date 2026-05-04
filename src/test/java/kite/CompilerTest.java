@@ -28,10 +28,12 @@ final class CompilerTest {
 
                 static void* bootstrap_alloc(int32_t size) { return malloc(size); }
 
+                #define KITE_TYPE_main 1
+
                 typedef struct kite_main {
                 } kite_main;
 
-                static void* kite_on_heap(size_t size) { return bootstrap_alloc((int32_t)size); }
+                static void* kite_on_heap(size_t size, int32_t type) { (void)type; return bootstrap_alloc((int32_t)size); }
 
                 int main(void) {
                     console_write("hello");
@@ -112,7 +114,7 @@ final class CompilerTest {
     void compilesObjectsAsReferences() throws IOException {
         String c = compileExample("references.kite");
 
-        assertTrue(c.contains("kite_node* a = kite_on_heap(sizeof(kite_node));"));
+        assertTrue(c.contains("kite_node* a = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("node_init(a, 10);"));
         assertTrue(c.contains("kite_node* b = a;"));
         assertTrue(c.contains("b->value = 20;"));
@@ -123,14 +125,14 @@ final class CompilerTest {
     void compilesDefaultHeapObjects() throws IOException {
         String c = compileExample("default_heap.kite");
 
-        assertTrue(c.contains("static void* kite_on_heap(size_t size) { return main_on_heap(&kite_owner, (int32_t)size); }"));
+        assertTrue(c.contains("static void* kite_on_heap(size_t size, int32_t type) { (void)type; return main_on_heap(&kite_owner, (int32_t)size); }"));
         assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size) {"));
         assertTrue(c.contains("kite_pointer_list heap_objects;"));
         assertFalse(c.contains("kite_list heap_objects;"));
         assertTrue(c.contains("pointer_list_add(&self->heap_objects, p);"));
-        assertTrue(c.contains("kite_node* a = kite_on_heap(sizeof(kite_node));"));
+        assertTrue(c.contains("kite_node* a = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("node_init(a, 10);"));
-        assertTrue(c.contains("kite_node* b = kite_on_heap(sizeof(kite_node));"));
+        assertTrue(c.contains("kite_node* b = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("main_clean_heap(&kite_owner);"));
         assertTrue(c.contains("pointer_list_delete_all(&self->heap_objects);"));
         assertFalse(c.contains("_a_storage"));
@@ -141,17 +143,19 @@ final class CompilerTest {
     void compilesMainOnHeapHook() throws IOException {
         String c = compileExample("owner.kite");
 
-        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size);"));
+        assertTrue(c.contains("#define KITE_TYPE_node"));
+        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size, int32_t type);"));
         assertTrue(c.contains("static kite_main kite_owner;"));
-        assertTrue(c.contains("static void* kite_on_heap(size_t size) { return main_on_heap(&kite_owner, (int32_t)size); }"));
-        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size) {"));
+        assertTrue(c.contains("static void* kite_on_heap(size_t size, int32_t type) { return main_on_heap(&kite_owner, (int32_t)size, type); }"));
+        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size, int32_t type) {"));
         assertTrue(c.contains("void* p = bootstrap_alloc(size);"));
+        assertTrue(c.contains("if (type == KITE_TYPE_node) {"));
         assertFalse(c.contains("allocator.alloc"));
         assertTrue(c.contains("pointer_list_add(&self->heap_objects, p);"));
         assertTrue(c.contains("void main_clean_heap(kite_main* self) {"));
         assertTrue(c.contains("pointer_list_delete_all(&self->heap_objects);"));
-        assertTrue(c.contains("kite_node* first = kite_on_heap(sizeof(kite_node));"));
-        assertTrue(c.contains("kite_node* second = kite_on_heap(sizeof(kite_node));"));
+        assertTrue(c.contains("kite_node* first = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
+        assertTrue(c.contains("kite_node* second = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("main_clean_heap(&kite_owner);"));
     }
 
