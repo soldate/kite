@@ -46,6 +46,7 @@ final class CGenerator {
     private Set<String> currentMethods = Set.of();
     private String currentType = "";
     private boolean currentMethodIsEntrypoint;
+    private boolean hasMainOnDelete;
     private Set<String> locals = Set.of();
     private Set<String> stackLocals = Set.of();
     private Map<String, String> localTypes = Map.of();
@@ -61,6 +62,7 @@ final class CGenerator {
 
         indexFields(program);
         validateListUsage(program);
+        hasMainOnDelete = mainOnDelete(program) != null;
         emitTypeIds();
         if (usesBootstrapList(program)) {
             emitPointerListRuntime();
@@ -81,7 +83,7 @@ final class CGenerator {
             out.append("\n");
         }
 
-        emitHeapHook(program);
+        emitRuntimeHooks(program);
 
         for (TypeDecl type : program.types()) {
             currentType = type.name();
@@ -100,10 +102,12 @@ final class CGenerator {
         return out.toString();
     }
 
-    private void emitHeapHook(Program program) {
+    private void emitRuntimeHooks(Program program) {
         MethodDecl onHeap = mainOnHeap(program);
-        if (onHeap != null) {
+        if (onHeap != null || hasMainOnDelete) {
             out.append("static kite_main kite_owner;\n");
+        }
+        if (onHeap != null) {
             if (onHeap.params().size() == 2) {
                 out.append("static void* kite_on_heap(size_t size, int32_t type) { return main_on_heap(&kite_owner, (int32_t)size, type); }\n\n");
             } else {
@@ -115,13 +119,21 @@ final class CGenerator {
     }
 
     private MethodDecl mainOnHeap(Program program) {
+        return mainMethod(program, "on_heap", this::validateOnHeapSignature);
+    }
+
+    private MethodDecl mainOnDelete(Program program) {
+        return mainMethod(program, "on_delete", this::validateOnDeleteSignature);
+    }
+
+    private MethodDecl mainMethod(Program program, String name, java.util.function.Consumer<MethodDecl> validator) {
         for (TypeDecl type : program.types()) {
             if (!type.name().equals("main")) {
                 continue;
             }
             for (Member member : type.members()) {
-                if (member instanceof MethodDecl method && method.name().equals("on_heap")) {
-                    validateOnHeapSignature(method);
+                if (member instanceof MethodDecl method && method.name().equals(name)) {
+                    validator.accept(method);
                     return method;
                 }
             }
@@ -141,6 +153,21 @@ final class CGenerator {
         }
         if (method.params().size() == 2 && !method.params().get(1).type().equals("int")) {
             throw new KiteException("on_heap second parameter must be int type");
+        }
+    }
+
+    private void validateOnDeleteSignature(MethodDecl method) {
+        if (!method.returnType().equals("void")) {
+            throw new KiteException("on_delete must return void");
+        }
+        if (method.params().size() != 2) {
+            throw new KiteException("on_delete expects 2 parameters");
+        }
+        if (!method.params().get(0).type().equals("pointer")) {
+            throw new KiteException("on_delete first parameter must be pointer");
+        }
+        if (!method.params().get(1).type().equals("int")) {
+            throw new KiteException("on_delete second parameter must be int type");
         }
     }
 
@@ -230,6 +257,15 @@ final class CGenerator {
         out.append("    }\n");
         out.append("    self->data[self->count] = item;\n");
         out.append("    self->count = self->count + 1;\n");
+        out.append("}\n\n");
+        out.append("static void pointer_list_remove(kite_pointer_list* self, void* item) {\n");
+        out.append("    for (int32_t i = 0; i < self->count; i = i + 1) {\n");
+        out.append("        if (self->data[i] == item) {\n");
+        out.append("            self->count = self->count - 1;\n");
+        out.append("            self->data[i] = self->data[self->count];\n");
+        out.append("            return;\n");
+        out.append("        }\n");
+        out.append("    }\n");
         out.append("}\n\n");
         out.append("static void pointer_list_delete_all(kite_pointer_list* self) {\n");
         out.append("    for (int32_t i = 0; i < self->count; i = i + 1) {\n");
@@ -429,7 +465,7 @@ final class CGenerator {
             emitVarDecl(varDecl);
         } else if (stmt instanceof DeleteStmt deleteStmt) {
             validateDelete(deleteStmt);
-            line("free(" + expr(deleteStmt.expr()) + ");");
+            emitDelete(deleteStmt);
         } else if (stmt instanceof ExprStmt exprStmt) {
             line(expr(exprStmt.expr()) + ";");
         } else if (stmt instanceof ReturnStmt returnStmt) {
@@ -505,6 +541,26 @@ final class CGenerator {
         if (deleteStmt.expr() instanceof Variable variable && stackLocals.contains(variable.name())) {
             throw new KiteException("Cannot delete stack object '" + variable.name() + "'");
         }
+    }
+
+    private void emitDelete(DeleteStmt deleteStmt) {
+        if (hasMainOnDelete) {
+            line("main_on_delete(&kite_owner, " + expr(deleteStmt.expr()) + ", " + deleteTypeId(deleteStmt.expr()) + ");");
+        } else {
+            line("free(" + expr(deleteStmt.expr()) + ");");
+        }
+    }
+
+    private String deleteTypeId(Expr expr) {
+        String type = exprType(expr);
+        if (type == null || type.equals("pointer")) {
+            return "0";
+        }
+        if (type.startsWith("pointer ")) {
+            String pointedType = type.substring("pointer ".length());
+            return isKiteObject(pointedType) ? cTypeIdName(pointedType) : "0";
+        }
+        return isKiteObject(type) ? cTypeIdName(type) : "0";
     }
 
     private void emitObjectInitializer(VarDecl varDecl) {
@@ -665,7 +721,7 @@ final class CGenerator {
                 if (variable.name().equals("allocator")) {
                     validateAllocatorCall(get, call);
                     String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
-                    return "bootstrap_alloc(" + args + ")";
+                    return get.name().equals("alloc") ? "bootstrap_alloc(" + args + ")" : "free(" + args + ")";
                 }
                 String objectType = localTypes.get(variable.name());
                 if (objectType != null && typeNames.contains(objectType)) {
@@ -697,10 +753,20 @@ final class CGenerator {
 
     private void validateAllocatorCall(Get get, Call call) {
         if (!currentType.equals("main")) {
-            throw new KiteException("allocator.alloc is currently supported only inside type main");
+            throw new KiteException("allocator." + get.name() + " is currently supported only inside type main");
         }
-        if (!get.name().equals("alloc")) {
+        if (!get.name().equals("alloc") && !get.name().equals("free")) {
             throw new KiteException("Unsupported allocator method '" + get.name() + "'");
+        }
+        if (get.name().equals("free")) {
+            if (call.args().size() != 1) {
+                throw new KiteException("allocator.free expects 1 argument");
+            }
+            String pointerType = exprType(call.args().get(0));
+            if (pointerType != null && !isPointerLikeType(pointerType)) {
+                throw new KiteException("allocator.free expects a pointer");
+            }
+            return;
         }
         if (call.args().size() != 1) {
             throw new KiteException("allocator.alloc expects 1 argument");
@@ -719,6 +785,16 @@ final class CGenerator {
             String itemType = exprType(call.args().get(0));
             if (itemType != null && !isPointerLikeType(itemType)) {
                 throw new KiteException("owner list add expects a pointer");
+            }
+            return;
+        }
+        if (get.name().equals("remove")) {
+            if (call.args().size() != 1) {
+                throw new KiteException("owner list remove expects 1 argument");
+            }
+            String itemType = exprType(call.args().get(0));
+            if (itemType != null && !isPointerLikeType(itemType)) {
+                throw new KiteException("owner list remove expects a pointer");
             }
             return;
         }

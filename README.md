@@ -154,7 +154,8 @@ delete obj;
 ```
 
 - always manual
-- should not be mixed with owner cleanup for the same object
+- calls `on_delete(pointer p, int type)` when the owner defines it
+- falls back to direct release when no owner delete hook exists
 - forgetting = memory leak
 - deleting twice = bug
 
@@ -174,6 +175,14 @@ type main {
         }
 
         return p;
+    }
+
+    void on_delete(pointer p, int type) {
+        if (type == node.id) {
+            heap_objects.remove(p);
+        }
+
+        allocator.free(p);
     }
 
     void clean_heap() {
@@ -198,7 +207,7 @@ node n;
 Owner/runtime infrastructure must not recursively allocate through `on_heap`.
 For example, if `heap_objects.add(p)` needs storage to track allocations, that storage must come from bootstrap/owner memory, not from the normal program heap hook.
 For now, the compiler specializes owner `list` fields into a bootstrap pointer-list implementation internally.
-`allocator.alloc` allocates owner/runtime memory without going through `on_heap`. The current C backend lowers it to the internal `bootstrap_alloc` helper, which is backed by `malloc` today.
+`allocator.alloc` allocates owner/runtime memory without going through `on_heap`. `allocator.free` releases that memory without recursively calling `on_delete`. The current C backend lowers these to `malloc`/`free` helpers.
 
 Fields declared in `type main` are owner fields. If an owner field uses a `type` that performs internal allocations, the compiler must generate an owner/bootstrap variant of that type so its internal storage does not call `on_heap`.
 
@@ -208,11 +217,11 @@ Rule:
 - owner/runtime bookkeeping allocation → bootstrap allocator
 - `type main` fields are owner/bootstrap infrastructure
 - types used by owner fields must be adapted by the compiler when they allocate internally
-- owner `list` currently supports `add(pointer)` and `delete_all()`
+- owner `list` currently supports `add(pointer)`, `remove(pointer)`, and `delete_all()`
 - `allocator.alloc(size)` is currently supported only inside `type main`; `size` must be an integer
 - `on_heap` may record returned pointers for later cleanup
+- `on_delete` should remove manually deleted pointers from owner tracking before releasing them
 - bootstrap allocation must not call `on_heap`
-- if `on_heap` records an object for owner cleanup, regular program code must not also `delete` that same object
 
 `on_heap` may receive type metadata so the owner can route allocations by object type:
 
@@ -457,7 +466,7 @@ Supported language subset:
 - explicit stack object declarations with `stack T name`
 - runtime `kite_on_heap(size, type)` helper for heap object allocation; currently backed by `malloc`
 - `type main` may define `pointer on_heap(int size)` or `pointer on_heap(int size, int type)` to override program-object heap allocation
-- `delete expr;` lowers to explicit memory release for heap/manual pointers
+- `delete expr;` calls owner `on_delete(pointer p, int type)` when present, otherwise releases directly
 - deleting a known `stack` object is rejected by the compiler
 - array syntax: `T[] name = [items]` and `T[n] name`, with indexing via `a[i]` and length via `a.length`
 

@@ -14,6 +14,16 @@ type main {
         return p;
     }
 
+    void on_delete(pointer p, int type) {
+        if (type == node.id) {
+            node_objects.remove(p);
+        } else {
+            box_objects.remove(p);
+        }
+
+        allocator.free(p);
+    }
+
     void clean_heap() {
         node_objects.delete_all();
         box_objects.delete_all();
@@ -25,6 +35,8 @@ type main {
         box payload = box(30);
 
         first.value = second.value + payload.value;
+
+        delete second;
 
         clean_heap();
     }

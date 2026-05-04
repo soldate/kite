@@ -155,12 +155,18 @@ final class CompilerTest {
         assertFalse(c.contains("allocator.alloc"));
         assertTrue(c.contains("pointer_list_add(&self->node_objects, p);"));
         assertTrue(c.contains("pointer_list_add(&self->box_objects, p);"));
+        assertTrue(c.contains("void main_on_delete(kite_main* self, void* p, int32_t type);"));
+        assertTrue(c.contains("void main_on_delete(kite_main* self, void* p, int32_t type) {"));
+        assertTrue(c.contains("pointer_list_remove(&self->node_objects, p);"));
+        assertTrue(c.contains("pointer_list_remove(&self->box_objects, p);"));
+        assertTrue(c.contains("free(p);"));
         assertTrue(c.contains("void main_clean_heap(kite_main* self) {"));
         assertTrue(c.contains("pointer_list_delete_all(&self->node_objects);"));
         assertTrue(c.contains("pointer_list_delete_all(&self->box_objects);"));
         assertTrue(c.contains("kite_node* first = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("kite_node* second = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("kite_box* payload = kite_on_heap(sizeof(kite_box), KITE_TYPE_box);"));
+        assertTrue(c.contains("main_on_delete(&kite_owner, second, KITE_TYPE_node);"));
         assertTrue(c.contains("main_clean_heap(&kite_owner);"));
     }
 
@@ -220,12 +226,12 @@ final class CompilerTest {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
                 type main {
                     void main() {
-                        pointer p = allocator.free(1);
+                        pointer p = allocator.reset(1);
                     }
                 }
                 """));
 
-        assertEquals("Unsupported allocator method 'free'", error.getMessage());
+        assertEquals("Unsupported allocator method 'reset'", error.getMessage());
     }
 
     @Test
@@ -252,6 +258,19 @@ final class CompilerTest {
                 """));
 
         assertEquals("allocator.alloc size must be an integer", error.getMessage());
+    }
+
+    @Test
+    void rejectsAllocatorFreeWithNonPointer() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    void main() {
+                        allocator.free(1);
+                    }
+                }
+                """));
+
+        assertEquals("allocator.free expects a pointer", error.getMessage());
     }
 
     @Test
@@ -318,6 +337,37 @@ final class CompilerTest {
                 """));
 
         assertEquals("on_heap second parameter must be int type", error.getMessage());
+    }
+
+    @Test
+    void rejectsOnDeleteWithInvalidReturnType() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    pointer on_delete(pointer p, int type) {
+                        return p;
+                    }
+
+                    void main() {
+                    }
+                }
+                """));
+
+        assertEquals("on_delete must return void", error.getMessage());
+    }
+
+    @Test
+    void rejectsOnDeleteWithInvalidParameters() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    void on_delete(int p, int type) {
+                    }
+
+                    void main() {
+                    }
+                }
+                """));
+
+        assertEquals("on_delete first parameter must be pointer", error.getMessage());
     }
 
     @Test
