@@ -6,6 +6,16 @@ type node {
     }
 }
 
+type memory {
+    pointer on_heap(int size, int type) {
+        return allocator.alloc(size);
+    }
+
+    void on_delete(pointer p, int type) {
+        allocator.free(p);
+    }
+}
+
 type main {
     void main() {
         node a = node(10);

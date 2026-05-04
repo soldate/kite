@@ -6,7 +6,7 @@ type node {
     }
 }
 
-type main {
+type memory {
     list heap_objects;
 
     pointer on_heap(int size, int type) {
@@ -22,13 +22,15 @@ type main {
     void clean_heap() {
         heap_objects.delete_all();
     }
+}
 
+type main {
     void main() {
         node a = node(10);
         node b = node(20);
 
         a.value = b.value;
 
-        clean_heap();
+        memory.clean_heap();
     }
 }

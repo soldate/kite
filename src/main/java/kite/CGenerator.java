@@ -46,7 +46,7 @@ final class CGenerator {
     private Set<String> currentMethods = Set.of();
     private String currentType = "";
     private boolean currentMethodIsEntrypoint;
-    private boolean hasMainOnDelete;
+    private boolean hasMemoryOnDelete;
     private Set<String> locals = Set.of();
     private Set<String> stackLocals = Set.of();
     private Map<String, String> localTypes = Map.of();
@@ -61,8 +61,9 @@ final class CGenerator {
         out.append("static void* bootstrap_alloc(int32_t size) { return malloc(size); }\n\n");
 
         indexFields(program);
+        validateMemoryHookPlacement(program);
         validateListUsage(program);
-        hasMainOnDelete = mainOnDelete(program) != null;
+        hasMemoryOnDelete = memoryOnDelete(program) != null;
         emitTypeIds();
         if (usesBootstrapList(program)) {
             emitPointerListRuntime();
@@ -103,32 +104,71 @@ final class CGenerator {
     }
 
     private void emitRuntimeHooks(Program program) {
-        MethodDecl onHeap = mainOnHeap(program);
-        if (onHeap != null || hasMainOnDelete) {
-            out.append("static kite_main kite_owner;\n");
+        MethodDecl onHeap = memoryOnHeap(program);
+        if (onHeap == null && usesHeapObjects(program)) {
+            throw new KiteException("Program must define type memory with on_heap");
+        }
+        if (hasType(program, "memory")) {
+            out.append("static kite_memory kite_memory_owner;\n");
         }
         if (onHeap != null) {
             if (onHeap.params().size() == 2) {
-                out.append("static void* kite_on_heap(size_t size, int32_t type) { return main_on_heap(&kite_owner, (int32_t)size, type); }\n\n");
+                out.append("static void* kite_on_heap(size_t size, int32_t type) { return memory_on_heap(&kite_memory_owner, (int32_t)size, type); }\n\n");
             } else {
-                out.append("static void* kite_on_heap(size_t size, int32_t type) { (void)type; return main_on_heap(&kite_owner, (int32_t)size); }\n\n");
+                out.append("static void* kite_on_heap(size_t size, int32_t type) { (void)type; return memory_on_heap(&kite_memory_owner, (int32_t)size); }\n\n");
             }
         } else {
             out.append("static void* kite_on_heap(size_t size, int32_t type) { (void)type; return bootstrap_alloc((int32_t)size); }\n\n");
         }
     }
 
-    private MethodDecl mainOnHeap(Program program) {
-        return mainMethod(program, "on_heap", this::validateOnHeapSignature);
-    }
-
-    private MethodDecl mainOnDelete(Program program) {
-        return mainMethod(program, "on_delete", this::validateOnDeleteSignature);
-    }
-
-    private MethodDecl mainMethod(Program program, String name, java.util.function.Consumer<MethodDecl> validator) {
+    private boolean usesHeapObjects(Program program) {
         for (TypeDecl type : program.types()) {
-            if (!type.name().equals("main")) {
+            for (Member member : type.members()) {
+                if (member instanceof MethodDecl method && method.body().stream().anyMatch(this::usesHeapObjects)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean hasType(Program program, String name) {
+        return program.types().stream().anyMatch(type -> type.name().equals(name));
+    }
+
+    private boolean usesHeapObjects(Stmt stmt) {
+        if (stmt == null) {
+            return false;
+        }
+        if (stmt instanceof VarDecl varDecl) {
+            return isKiteObject(varDecl.type()) && !varDecl.stack();
+        }
+        if (stmt instanceof IfStmt ifStmt) {
+            return ifStmt.thenBranch().stream().anyMatch(this::usesHeapObjects)
+                    || ifStmt.elseBranch().stream().anyMatch(this::usesHeapObjects);
+        }
+        if (stmt instanceof WhileStmt whileStmt) {
+            return whileStmt.body().stream().anyMatch(this::usesHeapObjects);
+        }
+        if (stmt instanceof ForStmt forStmt) {
+            return usesHeapObjects(forStmt.initializer()) || forStmt.body().stream().anyMatch(this::usesHeapObjects);
+        }
+        return false;
+    }
+
+    private MethodDecl memoryOnHeap(Program program) {
+        return singletonMethod(program, "memory", "on_heap", this::validateOnHeapSignature);
+    }
+
+    private MethodDecl memoryOnDelete(Program program) {
+        return singletonMethod(program, "memory", "on_delete", this::validateOnDeleteSignature);
+    }
+
+    private MethodDecl singletonMethod(Program program, String singletonType, String name,
+            java.util.function.Consumer<MethodDecl> validator) {
+        for (TypeDecl type : program.types()) {
+            if (!type.name().equals(singletonType)) {
                 continue;
             }
             for (Member member : type.members()) {
@@ -139,6 +179,20 @@ final class CGenerator {
             }
         }
         return null;
+    }
+
+    private void validateMemoryHookPlacement(Program program) {
+        for (TypeDecl type : program.types()) {
+            if (type.name().equals("memory")) {
+                continue;
+            }
+            for (Member member : type.members()) {
+                if (member instanceof MethodDecl method
+                        && (method.name().equals("on_heap") || method.name().equals("on_delete"))) {
+                    throw new KiteException(method.name() + " must be declared in type memory");
+                }
+            }
+        }
     }
 
     private void validateOnHeapSignature(MethodDecl method) {
@@ -176,14 +230,14 @@ final class CGenerator {
             for (Member member : type.members()) {
                 if (member instanceof FieldDecl field) {
                     if (field.type().equals("list") && !isBootstrapListField(type.name(), field.type())) {
-                        throw new KiteException("list is currently supported only as a type main owner field");
+                        throw new KiteException("list is currently supported only as a type memory owner field");
                     }
                 } else if (member instanceof MethodDecl method) {
                     if (method.returnType().equals("list")) {
-                        throw new KiteException("list is currently supported only as a type main owner field");
+                        throw new KiteException("list is currently supported only as a type memory owner field");
                     }
                     if (method.params().stream().anyMatch(param -> param.type().equals("list"))) {
-                        throw new KiteException("list is currently supported only as a type main owner field");
+                        throw new KiteException("list is currently supported only as a type memory owner field");
                     }
                     method.body().forEach(this::validateListUsage);
                 }
@@ -196,7 +250,7 @@ final class CGenerator {
             return;
         }
         if (stmt instanceof VarDecl varDecl && varDecl.type().equals("list")) {
-            throw new KiteException("list is currently supported only as a type main owner field");
+            throw new KiteException("list is currently supported only as a type memory owner field");
         }
         if (stmt instanceof IfStmt ifStmt) {
             ifStmt.thenBranch().forEach(this::validateListUsage);
@@ -544,8 +598,9 @@ final class CGenerator {
     }
 
     private void emitDelete(DeleteStmt deleteStmt) {
-        if (hasMainOnDelete) {
-            line("main_on_delete(&kite_owner, " + expr(deleteStmt.expr()) + ", " + deleteTypeId(deleteStmt.expr()) + ");");
+        if (hasMemoryOnDelete) {
+            line("memory_on_delete(&kite_memory_owner, " + expr(deleteStmt.expr()) + ", "
+                    + deleteTypeId(deleteStmt.expr()) + ");");
         } else {
             line("free(" + expr(deleteStmt.expr()) + ");");
         }
@@ -713,11 +768,18 @@ final class CGenerator {
         if (expr instanceof Call call) {
             if (call.callee() instanceof Variable variable && currentMethods.contains(variable.name())) {
                 String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
-                String selfArg = currentMethodIsEntrypoint && currentType.equals("main") ? "&kite_owner" : "self";
+                String selfArg = "self";
                 String allArgs = args.isEmpty() ? selfArg : selfArg + ", " + args;
                 return currentType + "_" + variable.name() + "(" + allArgs + ")";
             }
             if (call.callee() instanceof Get get && get.object() instanceof Variable variable) {
+                if (variable.name().equals("memory") && currentType.equals("main")) {
+                    validateMemorySingletonCall(get, call);
+                    String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
+                    String selfArg = "&kite_memory_owner";
+                    String allArgs = args.isEmpty() ? selfArg : selfArg + ", " + args;
+                    return "memory_" + get.name() + "(" + allArgs + ")";
+                }
                 if (variable.name().equals("allocator")) {
                     validateAllocatorCall(get, call);
                     String args = call.args().stream().map(this::expr).collect(Collectors.joining(", "));
@@ -752,8 +814,8 @@ final class CGenerator {
     }
 
     private void validateAllocatorCall(Get get, Call call) {
-        if (!currentType.equals("main")) {
-            throw new KiteException("allocator." + get.name() + " is currently supported only inside type main");
+        if (!currentType.equals("memory")) {
+            throw new KiteException("allocator." + get.name() + " is currently supported only inside type memory");
         }
         if (!get.name().equals("alloc") && !get.name().equals("free")) {
             throw new KiteException("Unsupported allocator method '" + get.name() + "'");
@@ -774,6 +836,12 @@ final class CGenerator {
         String sizeType = exprType(call.args().get(0));
         if (sizeType != null && !isIntegerType(sizeType)) {
             throw new KiteException("allocator.alloc size must be an integer");
+        }
+    }
+
+    private void validateMemorySingletonCall(Get get, Call call) {
+        if (!methodsByType.getOrDefault("memory", Set.of()).contains(get.name())) {
+            throw new KiteException("Unknown memory method '" + get.name() + "'");
         }
     }
 
@@ -896,7 +964,7 @@ final class CGenerator {
     }
 
     private boolean isBootstrapListField(String ownerType, String fieldType) {
-        return ownerType.equals("main") && fieldType.equals("list");
+        return ownerType.equals("memory") && fieldType.equals("list");
     }
 
     private String storageName(String variableName) {

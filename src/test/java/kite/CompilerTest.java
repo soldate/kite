@@ -118,15 +118,15 @@ final class CompilerTest {
         assertTrue(c.contains("node_init(a, 10);"));
         assertTrue(c.contains("kite_node* b = a;"));
         assertTrue(c.contains("b->value = 20;"));
-        assertTrue(c.contains("free(a);"));
+        assertTrue(c.contains("memory_on_delete(&kite_memory_owner, a, KITE_TYPE_node);"));
     }
 
     @Test
     void compilesDefaultHeapObjects() throws IOException {
         String c = compileExample("default_heap.kite");
 
-        assertTrue(c.contains("static void* kite_on_heap(size_t size, int32_t type) { return main_on_heap(&kite_owner, (int32_t)size, type); }"));
-        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size, int32_t type) {"));
+        assertTrue(c.contains("static void* kite_on_heap(size_t size, int32_t type) { return memory_on_heap(&kite_memory_owner, (int32_t)size, type); }"));
+        assertTrue(c.contains("void* memory_on_heap(kite_memory* self, int32_t size, int32_t type) {"));
         assertTrue(c.contains("kite_pointer_list heap_objects;"));
         assertFalse(c.contains("kite_list heap_objects;"));
         assertTrue(c.contains("if (type == KITE_TYPE_node) {"));
@@ -134,40 +134,40 @@ final class CompilerTest {
         assertTrue(c.contains("kite_node* a = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("node_init(a, 10);"));
         assertTrue(c.contains("kite_node* b = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
-        assertTrue(c.contains("main_clean_heap(&kite_owner);"));
+        assertTrue(c.contains("memory_clean_heap(&kite_memory_owner);"));
         assertTrue(c.contains("pointer_list_delete_all(&self->heap_objects);"));
         assertFalse(c.contains("_a_storage"));
         assertFalse(c.contains("_b_storage"));
     }
 
     @Test
-    void compilesMainOnHeapHook() throws IOException {
+    void compilesMemoryHooks() throws IOException {
         String c = compileExample("owner.kite");
 
         assertTrue(c.contains("#define KITE_TYPE_node"));
         assertTrue(c.contains("#define KITE_TYPE_box"));
-        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size, int32_t type);"));
-        assertTrue(c.contains("static kite_main kite_owner;"));
-        assertTrue(c.contains("static void* kite_on_heap(size_t size, int32_t type) { return main_on_heap(&kite_owner, (int32_t)size, type); }"));
-        assertTrue(c.contains("void* main_on_heap(kite_main* self, int32_t size, int32_t type) {"));
+        assertTrue(c.contains("void* memory_on_heap(kite_memory* self, int32_t size, int32_t type);"));
+        assertTrue(c.contains("static kite_memory kite_memory_owner;"));
+        assertTrue(c.contains("static void* kite_on_heap(size_t size, int32_t type) { return memory_on_heap(&kite_memory_owner, (int32_t)size, type); }"));
+        assertTrue(c.contains("void* memory_on_heap(kite_memory* self, int32_t size, int32_t type) {"));
         assertTrue(c.contains("void* p = bootstrap_alloc(size);"));
         assertTrue(c.contains("if (type == KITE_TYPE_node) {"));
         assertFalse(c.contains("allocator.alloc"));
         assertTrue(c.contains("pointer_list_add(&self->node_objects, p);"));
         assertTrue(c.contains("pointer_list_add(&self->box_objects, p);"));
-        assertTrue(c.contains("void main_on_delete(kite_main* self, void* p, int32_t type);"));
-        assertTrue(c.contains("void main_on_delete(kite_main* self, void* p, int32_t type) {"));
+        assertTrue(c.contains("void memory_on_delete(kite_memory* self, void* p, int32_t type);"));
+        assertTrue(c.contains("void memory_on_delete(kite_memory* self, void* p, int32_t type) {"));
         assertTrue(c.contains("pointer_list_remove(&self->node_objects, p);"));
         assertTrue(c.contains("pointer_list_remove(&self->box_objects, p);"));
         assertTrue(c.contains("free(p);"));
-        assertTrue(c.contains("void main_clean_heap(kite_main* self) {"));
+        assertTrue(c.contains("void memory_clean_heap(kite_memory* self) {"));
         assertTrue(c.contains("pointer_list_delete_all(&self->node_objects);"));
         assertTrue(c.contains("pointer_list_delete_all(&self->box_objects);"));
         assertTrue(c.contains("kite_node* first = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("kite_node* second = kite_on_heap(sizeof(kite_node), KITE_TYPE_node);"));
         assertTrue(c.contains("kite_box* payload = kite_on_heap(sizeof(kite_box), KITE_TYPE_box);"));
-        assertTrue(c.contains("main_on_delete(&kite_owner, second, KITE_TYPE_node);"));
-        assertTrue(c.contains("main_clean_heap(&kite_owner);"));
+        assertTrue(c.contains("memory_on_delete(&kite_memory_owner, second, KITE_TYPE_node);"));
+        assertTrue(c.contains("memory_clean_heap(&kite_memory_owner);"));
     }
 
     @Test
@@ -218,15 +218,21 @@ final class CompilerTest {
                 }
                 """));
 
-        assertEquals("list is currently supported only as a type main owner field", error.getMessage());
+        assertEquals("list is currently supported only as a type memory owner field", error.getMessage());
     }
 
     @Test
     void rejectsUnsupportedAllocatorMethods() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type memory {
+                    pointer test() {
+                        pointer p = allocator.reset(1);
+                        return p;
+                    }
+                }
+
                 type main {
                     void main() {
-                        pointer p = allocator.reset(1);
                     }
                 }
                 """));
@@ -237,9 +243,15 @@ final class CompilerTest {
     @Test
     void rejectsAllocatorAllocWithWrongArity() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type memory {
+                    pointer test() {
+                        pointer p = allocator.alloc();
+                        return p;
+                    }
+                }
+
                 type main {
                     void main() {
-                        pointer p = allocator.alloc();
                     }
                 }
                 """));
@@ -250,9 +262,15 @@ final class CompilerTest {
     @Test
     void rejectsAllocatorAllocWithNonIntegerSize() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type memory {
+                    pointer test() {
+                        pointer p = allocator.alloc("large");
+                        return p;
+                    }
+                }
+
                 type main {
                     void main() {
-                        pointer p = allocator.alloc("large");
                     }
                 }
                 """));
@@ -263,9 +281,14 @@ final class CompilerTest {
     @Test
     void rejectsAllocatorFreeWithNonPointer() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type memory {
+                    void test() {
+                        allocator.free(1);
+                    }
+                }
+
                 type main {
                     void main() {
-                        allocator.free(1);
                     }
                 }
                 """));
@@ -288,17 +311,19 @@ final class CompilerTest {
                 }
                 """));
 
-        assertEquals("allocator.alloc is currently supported only inside type main", error.getMessage());
+        assertEquals("allocator.alloc is currently supported only inside type memory", error.getMessage());
     }
 
     @Test
     void rejectsOnHeapWithInvalidReturnType() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                type memory {
                     int on_heap(int size) {
                         return 0;
                     }
+                }
 
+                type main {
                     void main() {
                     }
                 }
@@ -310,11 +335,13 @@ final class CompilerTest {
     @Test
     void rejectsOnHeapWithInvalidParameterCount() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                type memory {
                     pointer on_heap() {
                         return allocator.alloc(1);
                     }
+                }
 
+                type main {
                     void main() {
                     }
                 }
@@ -326,11 +353,13 @@ final class CompilerTest {
     @Test
     void rejectsOnHeapWithInvalidTypeParameter() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                type memory {
                     pointer on_heap(int size, string type) {
                         return allocator.alloc(size);
                     }
+                }
 
+                type main {
                     void main() {
                     }
                 }
@@ -342,11 +371,13 @@ final class CompilerTest {
     @Test
     void rejectsOnDeleteWithInvalidReturnType() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                type memory {
                     pointer on_delete(pointer p, int type) {
                         return p;
                     }
+                }
 
+                type main {
                     void main() {
                     }
                 }
@@ -358,10 +389,12 @@ final class CompilerTest {
     @Test
     void rejectsOnDeleteWithInvalidParameters() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                type memory {
                     void on_delete(int p, int type) {
                     }
+                }
 
+                type main {
                     void main() {
                     }
                 }
@@ -373,11 +406,16 @@ final class CompilerTest {
     @Test
     void rejectsUnsupportedOwnerListMethods() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                type memory {
                     list heap_objects;
 
-                    void main() {
+                    void test() {
                         heap_objects.clear();
+                    }
+                }
+
+                type main {
+                    void main() {
                     }
                 }
                 """));
@@ -388,11 +426,16 @@ final class CompilerTest {
     @Test
     void rejectsOwnerListAddWithWrongArity() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                type memory {
                     list heap_objects;
 
-                    void main() {
+                    void test() {
                         heap_objects.add();
+                    }
+                }
+
+                type main {
+                    void main() {
                     }
                 }
                 """));
@@ -403,11 +446,16 @@ final class CompilerTest {
     @Test
     void rejectsOwnerListAddWithNonPointer() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                type memory {
                     list heap_objects;
 
-                    void main() {
+                    void test() {
                         heap_objects.add(1);
+                    }
+                }
+
+                type main {
+                    void main() {
                     }
                 }
                 """));
