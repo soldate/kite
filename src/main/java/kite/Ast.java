@@ -6,7 +6,7 @@ final class Ast {
     record Program(List<TypeDecl> types) {
     }
 
-    record TypeDecl(String name, List<Member> members) {
+    record TypeDecl(String name, boolean special, List<Member> members) {
     }
 
     sealed interface Member permits FieldDecl, MethodDecl {

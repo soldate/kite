@@ -38,7 +38,7 @@ type node {
 
 ### Rules
 
-- all code lives inside `type`
+- all code lives inside `type` or `special type`
 - names are lowercase by convention
 - semicolons are required
 - `if (...)`, `while (...)`, `for (...)` use C-style syntax
@@ -49,14 +49,14 @@ type node {
 ## Entry point
 
 ```c
-type main {
+special type main {
     void main() {
         console.write("hello");
     }
 }
 ```
 
-Only one `type main` with `void main()` should exist in a program.
+Only one `special type main` with `void main()` should exist in a program.
 
 ---
 
@@ -164,7 +164,7 @@ delete obj;
 ## Owner
 
 ```c
-type memory {
+special type memory {
     list heap_objects;
 
     pointer on_heap(int size, int type) {
@@ -190,7 +190,7 @@ type memory {
     }
 }
 
-type main {
+special type main {
     void main() {
         node a = node(10);
         node b = node(20);
@@ -201,7 +201,7 @@ type main {
 }
 ```
 
-`type memory` is the required singleton for heap policy. `on_heap` is the allocation hook for heap-allocated program objects. It is called for normal object declarations, which allocate on the heap by default:
+`special type memory` is the required singleton for heap policy. `on_heap` is the allocation hook for heap-allocated program objects. It is called for normal object declarations, which allocate on the heap by default:
 
 ```c
 node n;
@@ -212,17 +212,17 @@ For example, if `heap_objects.add(p)` needs storage to track allocations, that s
 For now, the compiler specializes owner `list` fields into a bootstrap pointer-list implementation internally.
 `allocator.alloc` allocates owner/runtime memory without going through `on_heap`. `allocator.free` releases that memory without recursively calling `on_delete`. The current C backend lowers these to `malloc`/`free` helpers.
 
-Fields declared in `type memory` are owner fields. If an owner field uses a `type` that performs internal allocations, the compiler must generate an owner/bootstrap variant of that type so its internal storage does not call `on_heap`.
-`type main` should stay focused on program flow and call memory singleton methods explicitly, such as `memory.clean_heap()`.
+Fields declared in `special type memory` are owner fields. If an owner field uses a `type` that performs internal allocations, the compiler must generate an owner/bootstrap variant of that type so its internal storage does not call `on_heap`.
+`special type main` should stay focused on program flow and call memory singleton methods explicitly, such as `memory.clean_heap()`.
 
 Rule:
 
 - program object heap allocation → `on_heap`
 - owner/runtime bookkeeping allocation → bootstrap allocator
-- `type memory` fields are owner/bootstrap infrastructure
+- `special type memory` fields are owner/bootstrap infrastructure
 - types used by owner fields must be adapted by the compiler when they allocate internally
 - owner `list` currently supports `add(pointer)`, `remove(pointer)`, and `delete_all()`
-- `allocator.alloc(size)` and `allocator.free(pointer)` are currently supported only inside `type memory`; `size` must be an integer
+- `allocator.alloc(size)` and `allocator.free(pointer)` are currently supported only inside `special type memory`; `size` must be an integer
 - `on_heap` may record returned pointers for later cleanup
 - `on_delete` should remove manually deleted pointers from owner tracking before releasing them
 - bootstrap allocation must not call `on_heap`
@@ -447,6 +447,7 @@ Current implementation:
 Supported language subset:
 
 - `type`
+- `special type main` and `special type memory` for program singletons
 - fields
 - methods
 - primitive types: `int`, `uint`, `long`, `ulong`, `float`, `double`, `byte`, `char`, `bool`, `string`, `void`
@@ -469,9 +470,9 @@ Supported language subset:
 - Kite-defined object variables are references and allocate on heap by default
 - explicit stack object declarations with `stack T name`
 - runtime `kite_on_heap(size, type)` helper for heap object allocation; currently backed by `malloc`
-- `type memory` may define `pointer on_heap(int size)` or `pointer on_heap(int size, int type)` to override program-object heap allocation
-- `type memory` may define `void on_delete(pointer p, int type)`; `delete expr;` calls it when present, otherwise releases directly
-- `type main` may call memory singleton methods, such as `memory.clean_heap()`
+- `special type memory` may define `pointer on_heap(int size)` or `pointer on_heap(int size, int type)` to override program-object heap allocation
+- `special type memory` may define `void on_delete(pointer p, int type)`; `delete expr;` calls it when present, otherwise releases directly
+- `special type main` may call memory singleton methods, such as `memory.clean_heap()`
 - deleting a known `stack` object is rejected by the compiler
 - array syntax: `T[] name = [items]` and `T[n] name`, with indexing via `a[i]` and length via `a.length`
 
@@ -538,7 +539,7 @@ Kite has a small local VS Code extension in:
 tools/vscode-kite/
 ```
 
-It registers `.kite` as the `kite` language and provides TextMate syntax highlighting for Kite-specific keywords such as `type`, `pointer`, `copy`, `delete`, `foreach`, builtin types such as `list`, primitive types, strings, comments, and numbers.
+It registers `.kite` as the `kite` language and provides TextMate syntax highlighting for Kite-specific keywords such as `special`, `type`, `pointer`, `copy`, `delete`, `foreach`, builtin types such as `list`, primitive types, strings, comments, and numbers.
 
 Install or reinstall it with:
 

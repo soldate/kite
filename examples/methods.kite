@@ -6,7 +6,7 @@ type node {
     }
 }
 
-type main {
+special type main {
     void main() {
         stack node n = node(10);
     }

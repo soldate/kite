@@ -9,6 +9,7 @@ final class Lexer {
     private static final Map<String, TokenType> KEYWORDS = new HashMap<>();
 
     static {
+        KEYWORDS.put("special", TokenType.SPECIAL);
         KEYWORDS.put("type", TokenType.TYPE);
         KEYWORDS.put("void", TokenType.VOID);
         KEYWORDS.put("int", TokenType.INT);

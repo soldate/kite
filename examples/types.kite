@@ -1,4 +1,4 @@
-type main {
+special type main {
     void main() {
         bool enabled = true;
         uint count = 3;

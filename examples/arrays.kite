@@ -1,4 +1,4 @@
-type main {
+special type main {
     void main() {
         int[] numbers = [5, 7, 0];
         int[3] fixed;

@@ -45,8 +45,10 @@ final class Parser {
     }
 
     private TypeDecl typeDecl() {
+        boolean special = match(TokenType.SPECIAL);
         consume(TokenType.TYPE, "Expected 'type'");
         String name = consume(TokenType.IDENTIFIER, "Expected type name").lexeme();
+        validateSpecialType(name, special);
         consume(TokenType.LEFT_BRACE, "Expected '{' after type name");
 
         List<Member> members = new ArrayList<>();
@@ -62,7 +64,17 @@ final class Parser {
         }
 
         consume(TokenType.RIGHT_BRACE, "Expected '}' after type body");
-        return new TypeDecl(name, members);
+        return new TypeDecl(name, special, members);
+    }
+
+    private void validateSpecialType(String name, boolean special) {
+        boolean requiresSpecial = name.equals("main") || name.equals("memory");
+        if (requiresSpecial && !special) {
+            throw error(previous(), "Type '" + name + "' must be declared as 'special type " + name + "'");
+        }
+        if (special && !requiresSpecial) {
+            throw error(previous(), "Only 'main' and 'memory' can be declared as special types");
+        }
     }
 
     private MethodDecl methodDecl(String returnType, String name) {

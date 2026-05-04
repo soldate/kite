@@ -106,7 +106,7 @@ final class CGenerator {
     private void emitRuntimeHooks(Program program) {
         MethodDecl onHeap = memoryOnHeap(program);
         if (onHeap == null && usesHeapObjects(program)) {
-            throw new KiteException("Program must define type memory with on_heap");
+            throw new KiteException("Program must define special type memory with on_heap");
         }
         if (hasType(program, "memory")) {
             out.append("static kite_memory kite_memory_owner;\n");
@@ -189,7 +189,7 @@ final class CGenerator {
             for (Member member : type.members()) {
                 if (member instanceof MethodDecl method
                         && (method.name().equals("on_heap") || method.name().equals("on_delete"))) {
-                    throw new KiteException(method.name() + " must be declared in type memory");
+                    throw new KiteException(method.name() + " must be declared in special type memory");
                 }
             }
         }
@@ -230,14 +230,14 @@ final class CGenerator {
             for (Member member : type.members()) {
                 if (member instanceof FieldDecl field) {
                     if (field.type().equals("list") && !isBootstrapListField(type.name(), field.type())) {
-                        throw new KiteException("list is currently supported only as a type memory owner field");
+                        throw new KiteException("list is currently supported only as a special type memory owner field");
                     }
                 } else if (member instanceof MethodDecl method) {
                     if (method.returnType().equals("list")) {
-                        throw new KiteException("list is currently supported only as a type memory owner field");
+                        throw new KiteException("list is currently supported only as a special type memory owner field");
                     }
                     if (method.params().stream().anyMatch(param -> param.type().equals("list"))) {
-                        throw new KiteException("list is currently supported only as a type memory owner field");
+                        throw new KiteException("list is currently supported only as a special type memory owner field");
                     }
                     method.body().forEach(this::validateListUsage);
                 }
@@ -250,7 +250,7 @@ final class CGenerator {
             return;
         }
         if (stmt instanceof VarDecl varDecl && varDecl.type().equals("list")) {
-            throw new KiteException("list is currently supported only as a type memory owner field");
+            throw new KiteException("list is currently supported only as a special type memory owner field");
         }
         if (stmt instanceof IfStmt ifStmt) {
             ifStmt.thenBranch().forEach(this::validateListUsage);
@@ -815,7 +815,7 @@ final class CGenerator {
 
     private void validateAllocatorCall(Get get, Call call) {
         if (!currentType.equals("memory")) {
-            throw new KiteException("allocator." + get.name() + " is currently supported only inside type memory");
+            throw new KiteException("allocator." + get.name() + " is currently supported only inside special type memory");
         }
         if (!get.name().equals("alloc") && !get.name().equals("free")) {
             throw new KiteException("Unsupported allocator method '" + get.name() + "'");

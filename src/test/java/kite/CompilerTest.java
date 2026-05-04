@@ -197,7 +197,7 @@ final class CompilerTest {
                     int value;
                 }
 
-                type main {
+                special type main {
                     void main() {
                         stack node n;
                         delete n;
@@ -211,27 +211,57 @@ final class CompilerTest {
     @Test
     void rejectsListOutsideOwnerFieldsForNow() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                special type main {
                     void main() {
                         list values;
                     }
                 }
                 """));
 
-        assertEquals("list is currently supported only as a type memory owner field", error.getMessage());
+        assertEquals("list is currently supported only as a special type memory owner field", error.getMessage());
+    }
+
+    @Test
+    void rejectsMainWithoutSpecialMarker() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                type main {
+                    void main() {
+                    }
+                }
+                """));
+
+        assertEquals("Line 1, column 6: Type 'main' must be declared as 'special type main'",
+                error.getMessage());
+    }
+
+    @Test
+    void rejectsSpecialMarkerOnNormalTypes() {
+        KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
+                special type node {
+                    int value;
+                }
+
+                special type main {
+                    void main() {
+                    }
+                }
+                """));
+
+        assertEquals("Line 1, column 14: Only 'main' and 'memory' can be declared as special types",
+                error.getMessage());
     }
 
     @Test
     void rejectsUnsupportedAllocatorMethods() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     pointer test() {
                         pointer p = allocator.reset(1);
                         return p;
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -243,14 +273,14 @@ final class CompilerTest {
     @Test
     void rejectsAllocatorAllocWithWrongArity() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     pointer test() {
                         pointer p = allocator.alloc();
                         return p;
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -262,14 +292,14 @@ final class CompilerTest {
     @Test
     void rejectsAllocatorAllocWithNonIntegerSize() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     pointer test() {
                         pointer p = allocator.alloc("large");
                         return p;
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -281,13 +311,13 @@ final class CompilerTest {
     @Test
     void rejectsAllocatorFreeWithNonPointer() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     void test() {
                         allocator.free(1);
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -305,25 +335,25 @@ final class CompilerTest {
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
                 """));
 
-        assertEquals("allocator.alloc is currently supported only inside type memory", error.getMessage());
+        assertEquals("allocator.alloc is currently supported only inside special type memory", error.getMessage());
     }
 
     @Test
     void rejectsOnHeapWithInvalidReturnType() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     int on_heap(int size) {
                         return 0;
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -335,13 +365,13 @@ final class CompilerTest {
     @Test
     void rejectsOnHeapWithInvalidParameterCount() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     pointer on_heap() {
                         return allocator.alloc(1);
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -353,13 +383,13 @@ final class CompilerTest {
     @Test
     void rejectsOnHeapWithInvalidTypeParameter() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     pointer on_heap(int size, string type) {
                         return allocator.alloc(size);
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -371,13 +401,13 @@ final class CompilerTest {
     @Test
     void rejectsOnDeleteWithInvalidReturnType() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     pointer on_delete(pointer p, int type) {
                         return p;
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -389,12 +419,12 @@ final class CompilerTest {
     @Test
     void rejectsOnDeleteWithInvalidParameters() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     void on_delete(int p, int type) {
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -406,7 +436,7 @@ final class CompilerTest {
     @Test
     void rejectsUnsupportedOwnerListMethods() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     list heap_objects;
 
                     void test() {
@@ -414,7 +444,7 @@ final class CompilerTest {
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -426,7 +456,7 @@ final class CompilerTest {
     @Test
     void rejectsOwnerListAddWithWrongArity() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     list heap_objects;
 
                     void test() {
@@ -434,7 +464,7 @@ final class CompilerTest {
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -446,7 +476,7 @@ final class CompilerTest {
     @Test
     void rejectsOwnerListAddWithNonPointer() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type memory {
+                special type memory {
                     list heap_objects;
 
                     void test() {
@@ -454,7 +484,7 @@ final class CompilerTest {
                     }
                 }
 
-                type main {
+                special type main {
                     void main() {
                     }
                 }
@@ -466,7 +496,7 @@ final class CompilerTest {
     @Test
     void rejectsObsoleteArrayCreationSyntax() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                special type main {
                     void main() {
                         int[] values = array int(3);
                     }
@@ -480,7 +510,7 @@ final class CompilerTest {
     @Test
     void rejectsArrayLiteralLengthMismatch() {
         KiteException error = assertThrows(KiteException.class, () -> compiler.compile("""
-                type main {
+                special type main {
                     void main() {
                         int[2] values = [1, 2, 3];
                     }
@@ -497,7 +527,7 @@ final class CompilerTest {
                     int value;
                 }
 
-                type main {
+                special type main {
                     void main() {
                         node[3] nodes;
                     }
@@ -514,7 +544,7 @@ final class CompilerTest {
                     int value;
                 }
 
-                type main {
+                special type main {
                     void main() {
                         stack node[3] nodes;
                     }

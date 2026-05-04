@@ -8,7 +8,7 @@ type node {
     }
 }
 
-type main {
+special type main {
     void main() {
         pointer int p = 0;
         stack node n = node(10);

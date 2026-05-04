@@ -1,4 +1,4 @@
-type main {
+special type main {
     void main() {
         int i = 0;
 

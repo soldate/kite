@@ -55,7 +55,7 @@
             "patterns": [
                 {
                     "name": "keyword.declaration.kite",
-                    "match": "\\b(type|packed|soa|using|import|extern)\\b"
+                    "match": "\\b(special|type|packed|soa|using|import|extern)\\b"
                 },
                 {
                     "name": "keyword.control.kite",

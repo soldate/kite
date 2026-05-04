@@ -6,7 +6,7 @@ type node {
     }
 }
 
-type memory {
+special type memory {
     list heap_objects;
 
     pointer on_heap(int size, int type) {
@@ -24,7 +24,7 @@ type memory {
     }
 }
 
-type main {
+special type main {
     void main() {
         node a = node(10);
         node b = node(20);

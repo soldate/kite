@@ -6,6 +6,7 @@ enum TokenType {
     NUMBER,
     STRING,
 
+    SPECIAL,
     TYPE,
     VOID,
     INT,

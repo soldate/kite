@@ -1,4 +1,4 @@
-type memory {
+special type memory {
     list node_objects;
     list box_objects;
 
@@ -30,7 +30,7 @@ type memory {
     }
 }
 
-type main {
+special type main {
     void main() {
         node first = node(10);
         node second = node(20);

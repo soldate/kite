@@ -6,7 +6,7 @@ type node {
     }
 }
 
-type memory {
+special type memory {
     pointer on_heap(int size, int type) {
         return allocator.alloc(size);
     }
@@ -16,7 +16,7 @@ type memory {
     }
 }
 
-type main {
+special type main {
     void main() {
         node a = node(10);
         node b = a;
